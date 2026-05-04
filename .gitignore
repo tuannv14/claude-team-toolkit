@@ -1,0 +1,37 @@
+# --- CRITICAL: never commit credentials ---
+# Profile/credential files (any location, any name)
+**/credentials
+**/credentials.*
+**/*.credentials
+**/*credentials.json
+**/*credentials.ini
+**/*credentials.yml
+**/*credentials.yaml
+
+# PAT / token files
+**/*.pat
+**/*.token
+**/.*_pat
+**/.*_token
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Secret files
+**/secrets/
+**/*secret*
+**/*Secret*
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# Claude Code local state (in case repo is opened with Claude Code)
+.claude/settings.local.json
+.claude/cache/

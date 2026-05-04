@@ -1,0 +1,21 @@
+{
+  "name": "claude-team-toolkit",
+  "version": "0.1.0",
+  "description": "Team-ready Claude Code skill pack: Trello + Azure DevOps integrations with multi-account profile support. Designed for dev, QA, QC, testers, and team leads.",
+  "keywords": [
+    "trello",
+    "azure-devops",
+    "integrations",
+    "team",
+    "multi-account",
+    "qa",
+    "devops"
+  ],
+  "author": "tuannv14",
+  "license": "MIT",
+  "homepage": "https://github.com/tuannv14/claude-team-toolkit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tuannv14/claude-team-toolkit.git"
+  }
+}
