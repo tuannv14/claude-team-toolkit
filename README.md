@@ -1,7 +1,7 @@
 # claude-team-toolkit
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.6.0-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
+[![Version](https://img.shields.io/badge/version-0.6.1-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
 [![Skills](https://img.shields.io/badge/skills-14-orange.svg)](#whats-included)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-7a3aff.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 
@@ -193,6 +193,81 @@ Revoke immediately at the service's token management page:
 - **Sentry:** User Settings → Auth Tokens
 - **Slack:** https://api.slack.com/apps → your app → OAuth & Permissions → Reinstall
 - **Postgres:** `ALTER USER readonly_user WITH PASSWORD '<new>';`
+
+---
+
+## Token economics
+
+This toolkit is designed to save tokens **across a typical multi-step
+session**, not on a one-off ad-hoc task. Be honest about when it helps and
+when it doesn't.
+
+### Always-loaded cost (every session)
+
+Frontmatter descriptions of all 14 skills load at session start so Claude
+can route correctly to the right skill: **~779 tokens** total (avg 56
+tokens per skill).
+
+### Per-skill body cost (loaded only when invoked)
+
+| Skill | Body tokens | Skill | Body tokens |
+|---|---:|---|---:|
+| postgres | 1,333 | k6 | 947 |
+| heroku | 1,234 | slack | 930 |
+| firebase | 1,222 | azure-devops | 845 |
+| rails-security | 1,196 | xlsx-testcases | 799 |
+| fastlane | 1,111 | sentry | 755 |
+| maestro | 1,104 | react-native | 716 |
+| rspec | 1,024 | trello | 584 |
+
+Sum of all bodies (if you invoked every skill once): ~13,800 tokens.
+
+### Comparison: with vs without the toolkit
+
+| Scenario | Without toolkit | With toolkit | Saved |
+|---|---:|---:|---:|
+| 1 skill × 1 invocation | ~1,500 | ~1,680 | **-180** (toolkit costs more) |
+| 3 skills × 4 invocations each | ~19,800 | ~5,500 | **+14,300 (~72%)** |
+| 5 skills × 5 invocations each | ~37,500 | ~9,800 | **+27,700 (~74%)** |
+| Per-skill, 5x reuse | ~5,000 | ~1,100 | **~75-81%** |
+
+### When the toolkit saves tokens
+
+- **Multi-step workflows that reuse the same skill** — skill body loads
+  once per session, follow-up calls are cheap.
+- **Multi-account operations** — the profile system saves re-explaining
+  auth + safety patterns to Claude every call.
+- **Less common APIs** — Azure DevOps Server, Heroku Platform API,
+  Sentry/Trello REST patterns are non-trivial; without a skill, Claude
+  often guesses wrong on the first try and needs a retry.
+
+### When it doesn't
+
+- **One-off ad-hoc tasks** — the 779 always-loaded tokens are wasted if
+  you don't invoke any toolkit skill in that session.
+- **Common tasks Claude knows well** — e.g., basic git, curl, npm scripts.
+  No skill needed.
+
+### Methodology
+
+"Without toolkit" cost is estimated as: equivalent body content Claude
+would generate (1.5× the skill body, accounting for verbose explanations)
++ retry overhead (35% probability of a retry on uncommon APIs, 50% of
+original cost). Real-world numbers vary by API familiarity and how Claude
+is prompted; these are best-effort estimates from observed token usage
+patterns. The break-even point is at roughly **2 invocations of any single
+skill in a session**.
+
+### Tips for token efficiency
+
+- Set `<SERVICE>_PROFILE` env var once at session start instead of
+  `--profile foo` on every command.
+- Use `profile use <name>` to set a default — the active profile pointer
+  is read from disk, no env var needed.
+- Don't run `configure` repeatedly — it's a one-time interactive setup
+  per profile.
+- For long-running scripts, prefer one skill invocation that does many
+  things over many small ones.
 
 ---
 
