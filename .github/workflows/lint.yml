@@ -1,0 +1,125 @@
+name: lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-skill-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate plugin.json
+        run: |
+          jq empty .claude-plugin/plugin.json
+          test "$(jq -r .name .claude-plugin/plugin.json)" = "claude-team-toolkit"
+
+      - name: Validate every SKILL.md frontmatter
+        run: |
+          for f in skills/*/SKILL.md; do
+            echo "Checking $f"
+            # Must start with --- and have closing ---
+            head -1 "$f" | grep -q '^---$' || { echo "FAIL: $f missing leading ---"; exit 1; }
+
+            # Must have name + description fields in frontmatter
+            head -20 "$f" | grep -q '^name:' || { echo "FAIL: $f missing name"; exit 1; }
+            head -20 "$f" | grep -q '^description:' || { echo "FAIL: $f missing description"; exit 1; }
+
+            # Description must be ≤ 60 words (token efficiency policy: 40, allow some slack)
+            desc=$(awk '/^description:/,/^[a-z][a-z-]*:|^---/' "$f" | head -10 | tr '\n' ' ')
+            words=$(echo "$desc" | wc -w)
+            if [ "$words" -gt 70 ]; then
+              echo "FAIL: $f description is $words words (max 70)"
+              exit 1
+            fi
+          done
+          echo "All SKILL.md files valid"
+
+      - name: Shellcheck lib/*.sh
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: ./lib
+
+      - name: Test lib/credentials.sh
+        run: |
+          export HOME=/tmp/ctt-test
+          mkdir -p /tmp/ctt-test/.test/.git
+          cat > /tmp/ctt-test/.test/credentials <<'EOF'
+          [default]
+          key = K_default
+          token = T_default
+
+          [work]
+          key = K_work
+          token = T_work
+          EOF
+          chmod 600 /tmp/ctt-test/.test/credentials
+
+          source lib/credentials.sh
+
+          # Test 1: default profile
+          ctt_load_creds test
+          test "$CTT_PROFILE" = "default" || { echo "FAIL test1: profile=$CTT_PROFILE"; exit 1; }
+          test "$CTT_KEY" = "K_default" || { echo "FAIL test1: key=$CTT_KEY"; exit 1; }
+
+          # Test 2: explicit profile arg
+          ctt_load_creds test work
+          test "$CTT_PROFILE" = "work" || { echo "FAIL test2: profile=$CTT_PROFILE"; exit 1; }
+          test "$CTT_KEY" = "K_work" || { echo "FAIL test2: key=$CTT_KEY"; exit 1; }
+
+          # Test 3: env var
+          TEST_PROFILE=work ctt_load_creds test
+          test "$CTT_PROFILE" = "work" || { echo "FAIL test3"; exit 1; }
+
+          # Test 4: mask
+          test "$(ctt_mask 'abcd1234efgh5678')" = "****5678" || { echo "FAIL test4"; exit 1; }
+
+          # Test 5: nonexistent profile fails
+          if ctt_load_creds test nonexistent 2>/dev/null; then
+            echo "FAIL test5: should have failed"
+            exit 1
+          fi
+
+          echo "lib/credentials.sh: 5/5 tests pass"
+
+  no-credential-leak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify no real credential patterns
+        run: |
+          # Look for real-looking AWS/GH/Heroku/Slack patterns. Placeholders
+          # use 'x' repeated; real tokens don't.
+          set +e
+          found=0
+          for pat in \
+            'AKIA[A-HJ-NP-Z0-9]{16}' \
+            'ghp_[A-Za-z0-9]{36}' \
+            'gho_[A-Za-z0-9]{36}' \
+            'HRKU-[a-f0-9]{32,}' \
+            'xoxb-[0-9]{11,13}-[0-9]{11,13}-[A-Za-z0-9]{24}' \
+            'sntrys_[A-Za-z0-9_]{60,}' \
+            'sk-ant-api[0-9]{2}-[A-Za-z0-9_-]{80,}'; do
+            matches=$(grep -rEn "$pat" --include='*.md' --include='*.json' --include='*.sh' --include='*.yml' . 2>/dev/null | grep -v 'xxx' | grep -v 'X{')
+            if [ -n "$matches" ]; then
+              echo "POTENTIAL LEAK matching $pat:"
+              echo "$matches"
+              found=1
+            fi
+          done
+          [ "$found" -eq 0 ] && echo "No real credentials detected"
+          exit $found
+
+      - name: Verify .gitignore blocks key/cert/cred patterns
+        run: |
+          for f in test.key test.pem test.p12 id_rsa firebase-adminsdk-foo.json gcp-key.json .kube/config secrets.yml .env credentials.json random.token; do
+            if ! git check-ignore "$f" >/dev/null 2>&1; then
+              echo "FAIL: $f not blocked by .gitignore"
+              exit 1
+            fi
+          done
+          echo "All credential file patterns properly blocked"

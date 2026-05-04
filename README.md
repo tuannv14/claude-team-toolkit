@@ -1,5 +1,10 @@
 # claude-team-toolkit
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.6.0-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
+[![Skills](https://img.shields.io/badge/skills-14-orange.svg)](#whats-included)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-7a3aff.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
+
 > Team-ready Claude Code skill pack — for **dev, QA, QC, testers, and team leads**.
 
 A Claude Code plugin bundling 14 integration skills your whole team can install
@@ -263,15 +268,27 @@ PRs welcome. Planned skills:
 
 ## Contributing
 
-1. Fork → branch → PR
-2. Each new skill must:
-   - Source `lib/credentials.sh` (don't duplicate helpers)
-   - Use `ctt_load_creds <service>` for credential loading
-   - Mask tokens with `ctt_mask` when displaying
-   - Use `ctt_confirm` for destructive operations
-   - Call `ctt_audit_log` for mutations
-   - Document required scopes/permissions
-3. Run security audit before merging — see `lib/install.sh` for tests.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, skill design rules,
+security checklist, and trim policy.
+
+Quick rules:
+- New skills must source `lib/credentials.sh` (no duplicated helpers)
+- Frontmatter `description` ≤ 40 words
+- Mutating ops must use `ctt_confirm` + `ctt_audit_log`
+- No real credentials, internal hostnames, or project names anywhere
+
+## Examples
+
+Sanitized templates in [examples/](examples/) — copy to your config locations:
+- `examples/trello-credentials.example` → `~/.trello/credentials`
+- `examples/azure-devops-credentials.example` → `~/.azure-devops/credentials`
+- `examples/.testcase-schema.example.yml` → your xlsx folder
+- `examples/.env.example` → your project root
+
+## Reporting security issues
+
+Don't open a public issue. Email `96.tuan.nv@gmail.com` with subject
+`[SECURITY] claude-team-toolkit`.
 
 ---
 

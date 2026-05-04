@@ -1,0 +1,38 @@
+# Example schema for /xlsx-testcases skill
+# Copy this file to <your-xlsx-folder>/.testcase-schema.yml and adjust columns
+# to match your test case workbook.
+
+# Sheet name within the workbook ("*" = all sheets)
+sheet: "Test Cases"
+
+# Header row index (1-based) — the row containing column titles
+header_row: 2
+
+# Column mapping — VALUE = column header in xlsx as written by the tester
+columns:
+  id:           "TC ID"           # required, must be unique
+  module:       "Module"
+  title:        "Title"           # required
+  steps:        "Steps"           # multi-line cell
+  expected:     "Expected Result"
+  priority:     "Priority"        # High/Medium/Low or P0/P1/P2/P3
+  precondition: "Precondition"
+  data:         "Test Data"
+  category:     "Category"        # smoke/regression/etc.
+  status:       "Status"          # New/Updated/Stable
+
+parsing:
+  # How "Steps" cells are formatted in your workbook:
+  # - "newline":  each step on its own line within the cell
+  # - "numbered": steps prefixed with "1.", "2.", etc.
+  steps_separator: "newline"
+
+  # Map your xlsx priority labels to canonical low/medium/high
+  priority_map:
+    P0: high
+    P1: high
+    P2: medium
+    P3: low
+    High: high
+    Medium: medium
+    Low: low
