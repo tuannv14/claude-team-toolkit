@@ -125,7 +125,7 @@ if is_mutating_sql "$SQL"; then
     return 1
   fi
   ctt_warn_destructive "Mutating SQL on $CTT_DATABASE@$CTT_HOST ($CTT_PROFILE)"
-  ctt_confirm "Run mutating SQL? Type the table/object name:" "$CTT_DATABASE" || return 1
+  ctt_confirm "Run mutating SQL? Type the database name '$CTT_DATABASE' to confirm:" "$CTT_DATABASE" || return 1
 fi
 
 pg_run -c "$SQL"
@@ -142,15 +142,26 @@ For just the plan without running: drop `ANALYZE`.
 
 ### `schema <table>` — describe a table
 
+Validate identifier first to prevent SQL injection:
+
 ```bash
-pg_run -c "\d+ $TABLE"
+# Identifier validation: letters, digits, underscore only (PostgreSQL identifier rules)
+case "$TABLE" in
+  ''|*[!a-zA-Z0-9_]*) echo "Invalid table name: $TABLE" >&2; return 1 ;;
+esac
+pg_run -v t="$TABLE" -c "\d+ :\"t\""
 ```
 
 ### `tables [--schema <name>]` — list tables with sizes
 
 ```bash
 SCHEMA="${SCHEMA:-public}"
-pg_run -c "
+case "$SCHEMA" in
+  ''|*[!a-zA-Z0-9_]*) echo "Invalid schema name: $SCHEMA" >&2; return 1 ;;
+esac
+
+# Use psql variable + quote_ident() inside SQL — never string-interpolate identifiers
+pg_run -v schema="$SCHEMA" -c "
 SELECT
   c.relname AS table,
   pg_size_pretty(pg_total_relation_size(c.oid)) AS size,
@@ -158,7 +169,7 @@ SELECT
   c.reltuples::bigint AS approx_rows
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE c.relkind = 'r' AND n.nspname = '$SCHEMA'
+WHERE c.relkind = 'r' AND n.nspname = :'schema'
 ORDER BY pg_total_relation_size(c.oid) DESC
 LIMIT 50;
 "
@@ -167,7 +178,10 @@ LIMIT 50;
 ### `indexes <table>` — list indexes (with usage stats)
 
 ```bash
-pg_run -c "
+case "$TABLE" in
+  ''|*[!a-zA-Z0-9_]*) echo "Invalid table name: $TABLE" >&2; return 1 ;;
+esac
+pg_run -v t="$TABLE" -c "
 SELECT
   i.relname AS index,
   pg_size_pretty(pg_relation_size(i.oid)) AS size,
@@ -177,7 +191,7 @@ FROM pg_class i
 JOIN pg_index ix ON i.oid = ix.indexrelid
 JOIN pg_class t ON t.oid = ix.indrelid
 LEFT JOIN pg_stat_user_indexes s ON s.indexrelid = i.oid
-WHERE t.relname = '$TABLE'
+WHERE t.relname = :'t'
 ORDER BY i.relname;
 "
 ```
@@ -202,8 +216,11 @@ ORDER BY query_start;
 
 ```bash
 [ "$FORCE" != "true" ] && { echo "Add --force flag" >&2; return 1; }
+case "$PID" in
+  ''|*[!0-9]*) echo "PID must be a positive integer" >&2; return 1 ;;
+esac
 ctt_confirm "Terminate Postgres backend pid $PID on $CTT_PROFILE?" "KILL" || return 1
-pg_run -c "SELECT pg_terminate_backend($PID);"
+pg_run -v pid="$PID" -c "SELECT pg_terminate_backend(:'pid'::int);"
 ctt_audit_log postgres "killed pid $PID"
 ```
 

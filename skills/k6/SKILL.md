@@ -33,7 +33,7 @@ Verify: `k6 version`. If missing, stop.
 
 ## Profile config
 
-`~/.k6/profiles.ini` (mode 600 — may contain auth tokens):
+`~/.k6/credentials` (mode 600 — may contain auth tokens):
 
 ```ini
 [default]
@@ -85,7 +85,7 @@ Write to `tests/k6/<endpoint>-<type>.js`:
 
 ```js
 import http from 'k6/http';
-import { check, sleep } from 'k6/check';
+import { check, sleep } from 'k6';
 
 export const options = {
   // populated from template based on type

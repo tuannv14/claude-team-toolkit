@@ -2,7 +2,7 @@
 
 > Team-ready Claude Code skill pack — for **dev, QA, QC, testers, and team leads**.
 
-A Claude Code plugin bundling 11 integration skills your whole team can install
+A Claude Code plugin bundling 16 integration skills your whole team can install
 once and start using immediately. All skills support **multiple accounts** via
 INI profile files (AWS-style), so personal/work/client accounts stay isolated
 and switchable on demand.
@@ -19,9 +19,18 @@ and switchable on demand.
 | **sentry** | `/sentry` | Issues, events, releases (Sentry SaaS + self-hosted) |
 | **slack** | `/slack` | Post messages, threads, file uploads, channel/user lookup |
 | **aws-s3** | `/aws-s3` | List/upload/download/sync S3 buckets, presigned URLs |
+| **firebase** | `/firebase` | Remote Config, App Distribution, Crashlytics symbols, Functions, Hosting (multi-project) |
 | **postgres** | `/postgres` | Read-only queries, EXPLAIN plans, schema, indexes, locks |
 
-### Testing & quality (project-local)
+### Mobile (React Native, iOS, Android)
+
+| Skill | Slash command | What it does |
+|---|---|---|
+| **react-native** | `/react-native` | Daily RN ops: run/clean/bundle/log/version/icons/splash |
+| **maestro** | `/maestro` | Mobile E2E with YAML flows (alternative to Detox) |
+| **fastlane** | `/fastlane` | iOS+Android release: TestFlight, App Store, Play Console, code signing |
+
+### Testing & quality
 
 | Skill | Slash command | What it does |
 |---|---|---|
@@ -29,6 +38,7 @@ and switchable on demand.
 | **brakeman** | `/brakeman` | Rails static security scanner — SQL injection, XSS, CSRF |
 | **bundler-audit** | `/bundler-audit` | Ruby gem CVE scan from Gemfile.lock |
 | **k6** | `/k6` | Load/stress/soak/spike tests with environment profiles |
+| **xlsx-testcases** ⭐ | `/xlsx-testcases` | Convert XLSX test cases → Maestro YAML / Detox / Markdown + sync to Azure DevOps Test Plans |
 
 ---
 
@@ -72,9 +82,14 @@ Most skills need `curl` + `jq`. Some need extras:
 |---|---|
 | heroku, sentry, slack, trello, azure-devops | `curl`, `jq` |
 | aws-s3 | `aws` CLI v2 (`aws --version`) |
+| firebase | `firebase-tools` (`npm install -g firebase-tools`) |
 | postgres | `psql` (PostgreSQL client) |
 | rspec, brakeman, bundler-audit | Ruby project with bundler |
 | k6 | `k6` binary (`k6 version`) |
+| maestro | `maestro` binary (`curl -Ls "https://get.maestro.mobile.dev" \| bash`) |
+| react-native | Node 18+, Yarn/npm, Watchman, Xcode (iOS), Android Studio (Android) |
+| fastlane | Ruby + `gem 'fastlane'` in project Gemfile |
+| xlsx-testcases | `python3` + delegates to `anthropic-skills:xlsx` for parsing |
 
 ### 2. Configure your first account
 

@@ -110,7 +110,9 @@ APP=$(heroku_app "$1"); shift
 
 BODY=$(jq -n '$ARGS.positional | map(split("=")) | map({key: .[0], value: (.[1:] | join("="))}) | from_entries' --args "$@")
 heroku_api PATCH "/apps/$APP/config-vars" -d "$BODY"
-ctt_audit_log heroku "config-set $APP keys: $(echo "$@" | sed 's/=[^ ]*/=****/g')"
+# Audit: only key NAMES, never values (handles JWT_KEY="x=y=z" correctly)
+keys=$(printf '%s\n' "$@" | awk -F= '{print $1}' | tr '\n' ' ')
+ctt_audit_log heroku "config-set $APP keys: $keys"
 ```
 
 Audit log records key names but NOT values.
@@ -162,8 +164,9 @@ ctt_audit_log heroku "restart $APP ${2:-all}"
 
 ```bash
 APP=$(heroku_app "$1")
+case "$LIMIT" in ''|*[!0-9]*) LIMIT=20 ;; esac
 heroku_api GET "/apps/$APP/releases" \
-  -H "Range: version ..; max=${LIMIT:-20}, order=desc" \
+  -H "Range: version ..; max=$LIMIT, order=desc" \
   | jq -r '.[] | "v\(.version)\t\(.created_at)\t\(.user.email)\t\(.description)"'
 ```
 

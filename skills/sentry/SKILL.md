@@ -4,6 +4,7 @@ description: Query Sentry issues, events, releases, and projects via the Sentry 
 user-invocable: true
 allowed-tools:
   - Read
+  - Write
   - Bash
 ---
 

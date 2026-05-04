@@ -323,7 +323,7 @@ ORDER BY [System.ChangedDate] DESC
 `type` is the work item type (e.g., `Bug`, `Task`, `User Story`).
 
 ```bash
-BODY='[{"op":"add","path":"/fields/System.Title","value":"'"$TITLE"'"}]'
+BODY=$(jq -n --arg t "$TITLE" '[{op:"add", path:"/fields/System.Title", value:$t}]')
 azdo_api POST "/$PROJECT/_apis/wit/workitems/\$$TYPE" \
   -H "Content-Type: application/json-patch+json" \
   -d "$BODY"

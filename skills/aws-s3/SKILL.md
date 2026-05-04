@@ -77,10 +77,14 @@ SSO avoids long-lived access keys → strongly recommended for orgs.
 
 ```bash
 PROF="${PROFILE:-${AWS_S3_PROFILE:-default}}"
-AWS="aws --profile $PROF"
+
+# Validate profile name (letters, digits, hyphen, underscore only)
+case "$PROF" in
+  ''|*[!a-zA-Z0-9_-]*) echo "Invalid profile name: $PROF" >&2; return 1 ;;
+esac
 
 # Verify creds work before any op
-$AWS sts get-caller-identity >/dev/null || {
+aws --profile "$PROF" sts get-caller-identity >/dev/null || {
   echo "Auth failed for profile $PROF. Run: aws configure --profile $PROF (or aws sso login --profile $PROF)" >&2
   return 1
 }
@@ -91,13 +95,13 @@ $AWS sts get-caller-identity >/dev/null || {
 ### `buckets` — list buckets
 
 ```bash
-$AWS s3 ls
+aws --profile "$PROF" s3 ls
 ```
 
 ### `ls <s3://bucket/prefix>` — list objects
 
 ```bash
-$AWS s3 ls "$S3_PATH" --human-readable --summarize
+aws --profile "$PROF" s3 ls "$S3_PATH" --human-readable --summarize
 ```
 
 ### `cp <src> <dst>` — copy (one direction)
@@ -105,7 +109,7 @@ $AWS s3 ls "$S3_PATH" --human-readable --summarize
 `<src>` and `<dst>` can be local path or `s3://...`.
 
 ```bash
-$AWS s3 cp "$SRC" "$DST"
+aws --profile "$PROF" s3 cp "$SRC" "$DST"
 ```
 
 ### `sync <src> <dst> [--delete] [--exclude pattern]`
@@ -114,19 +118,24 @@ $AWS s3 cp "$SRC" "$DST"
 
 ```bash
 source "$HOME/.claude-team-toolkit/lib/confirm.sh"
+
+# Build args as array — never use unquoted variable splitting for flags
+EXTRA=()
 if [ "$DELETE" = "true" ]; then
   ctt_warn_destructive "Sync with --delete: files in $DST not in $SRC will be REMOVED"
   ctt_confirm "Proceed with $SRC → $DST (--delete) on profile $PROF?" "SYNC" || return 1
-  EXTRA="--delete"
+  EXTRA+=(--delete)
 fi
-$AWS s3 sync "$SRC" "$DST" $EXTRA ${EXCLUDE:+--exclude "$EXCLUDE"}
-ctt_audit_log aws-s3 "sync $SRC → $DST $EXTRA"
+[ -n "$EXCLUDE" ] && EXTRA+=(--exclude "$EXCLUDE")
+
+aws --profile "$PROF" s3 sync "$SRC" "$DST" "${EXTRA[@]}"
+ctt_audit_log aws-s3 "sync $SRC → $DST ${EXTRA[*]}"
 ```
 
 ### `presign <s3://bucket/key> [--expires-in N]` — generate presigned URL
 
 ```bash
-$AWS s3 presign "$S3_PATH" --expires-in "${EXPIRES:-3600}"
+aws --profile "$PROF" s3 presign "$S3_PATH" --expires-in "${EXPIRES:-3600}"
 ```
 
 Default 1h. Cap at 7d (604800s) — that's the AWS max. Anything longer fails.
@@ -134,18 +143,23 @@ Default 1h. Cap at 7d (604800s) — that's the AWS max. Anything longer fails.
 ### `info <s3://bucket/key>` — object metadata
 
 ```bash
-BUCKET=$(echo "$1" | sed 's|s3://\([^/]*\)/.*|\1|')
-KEY=$(echo "$1" | sed 's|s3://[^/]*/||')
-$AWS s3api head-object --bucket "$BUCKET" --key "$KEY"
+case "$1" in
+  s3://*/*) ;;
+  *) echo "Need s3://bucket/key path" >&2; return 1 ;;
+esac
+BUCKET="${1#s3://}"; BUCKET="${BUCKET%%/*}"
+KEY="${1#s3://*/}"
+[ -z "$KEY" ] && { echo "Empty key" >&2; return 1; }
+aws --profile "$PROF" s3api head-object --bucket "$BUCKET" --key "$KEY"
 ```
 
 ### `bucket-info <bucket>` — bucket-level config
 
 ```bash
-echo "=== Versioning ==="; $AWS s3api get-bucket-versioning --bucket "$1"
-echo "=== Encryption ==="; $AWS s3api get-bucket-encryption --bucket "$1" 2>/dev/null || echo "Not configured"
-echo "=== Public access block ==="; $AWS s3api get-public-access-block --bucket "$1" 2>/dev/null
-echo "=== Lifecycle ==="; $AWS s3api get-bucket-lifecycle-configuration --bucket "$1" 2>/dev/null || echo "None"
+echo "=== Versioning ==="; aws --profile "$PROF" s3api get-bucket-versioning --bucket "$1"
+echo "=== Encryption ==="; aws --profile "$PROF" s3api get-bucket-encryption --bucket "$1" 2>/dev/null || echo "Not configured"
+echo "=== Public access block ==="; aws --profile "$PROF" s3api get-public-access-block --bucket "$1" 2>/dev/null
+echo "=== Lifecycle ==="; aws --profile "$PROF" s3api get-bucket-lifecycle-configuration --bucket "$1" 2>/dev/null || echo "None"
 ```
 
 ### `rm <s3://path> [--recursive]` — DESTRUCTIVE
@@ -153,7 +167,7 @@ echo "=== Lifecycle ==="; $AWS s3api get-bucket-lifecycle-configuration --bucket
 ```bash
 ctt_warn_destructive "Delete $S3_PATH ${RECURSIVE:+(recursive)} on profile $PROF"
 ctt_confirm "Type DELETE to confirm:" "DELETE" || return 1
-$AWS s3 rm "$S3_PATH" ${RECURSIVE:+--recursive}
+aws --profile "$PROF" s3 rm "$S3_PATH" ${RECURSIVE:+--recursive}
 ctt_audit_log aws-s3 "rm $S3_PATH ${RECURSIVE:+recursive}"
 ```
 

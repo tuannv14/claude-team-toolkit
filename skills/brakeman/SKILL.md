@@ -36,13 +36,14 @@ PATH_ARG="${1:-.}"
 SEV="${SEV:-medium}"   # default: high+medium
 
 # Use project's brakeman if Gemfile-pinned, else system gem
+CMD=()
 if [ -f "$PATH_ARG/Gemfile" ] && grep -q "brakeman" "$PATH_ARG/Gemfile" 2>/dev/null; then
-  CMD="bundle exec brakeman"
+  CMD=(bundle exec brakeman)
 else
-  CMD="brakeman"
+  CMD=(brakeman)
 fi
 
-$CMD -p "$PATH_ARG" -f json -o /tmp/brakeman.json --no-progress 2>/dev/null
+"${CMD[@]}" -p "$PATH_ARG" -f json -o /tmp/brakeman.json --no-progress 2>/dev/null
 ```
 
 Then parse `/tmp/brakeman.json` with jq:
@@ -70,15 +71,20 @@ jq -r '.warnings | group_by(.confidence) | .[] | "\(.[0].confidence): \(length)"
 
 ### `diff [base-branch]` — only NEW issues vs base branch
 
-```bash
-git stash -u
-git checkout "${BASE:-main}"
-$CMD -f json -o /tmp/brakeman-base.json --no-progress
-git checkout -
-git stash pop || true
-$CMD -f json -o /tmp/brakeman-head.json --no-progress
+Uses `git worktree add` to a temp directory — **non-destructive**, doesn't
+touch your working tree or stash.
 
-# Diff by fingerprint (brakeman's stable warning identifier)
+```bash
+BASE="${BASE:-main}"
+WT="$(mktemp -d)/brakeman-base"
+cleanup() { git worktree remove --force "$WT" 2>/dev/null; rm -rf "$WT"; }
+trap cleanup EXIT INT TERM
+
+git worktree add --quiet "$WT" "$BASE" || { echo "Cannot create worktree at $BASE" >&2; return 1; }
+
+(cd "$WT" && "${CMD[@]}" -f json -o /tmp/brakeman-base.json --no-progress 2>/dev/null) || true
+"${CMD[@]}" -f json -o /tmp/brakeman-head.json --no-progress 2>/dev/null
+
 jq -s '
   (.[0].warnings | map(.fingerprint)) as $base
   | .[1].warnings | map(select(.fingerprint as $f | $base | index($f) | not))
@@ -86,6 +92,10 @@ jq -s '
 ```
 
 Only show warnings whose fingerprints don't exist on base — true regressions.
+
+**Why worktree, not stash:** `git stash -u` is destructive on Ctrl-C / OOM
+and silently swallows merge conflicts on `pop`. Worktree creates an isolated
+checkout in a temp dir; your working tree is never modified.
 
 ### `ignore <fingerprint>` — mark a warning as known/false-positive
 

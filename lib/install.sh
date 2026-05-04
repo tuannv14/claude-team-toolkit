@@ -21,7 +21,8 @@ echo "[1/3] Setting up $CTT_HOME ..."
 mkdir -p "$CTT_HOME/lib"
 chmod 700 "$CTT_HOME" 2>/dev/null || true
 cp -f "$SCRIPT_DIR"/*.sh "$CTT_HOME/lib/"
-chmod 600 "$CTT_HOME/lib"/*.sh 2>/dev/null || true
+# 644 — these are sourced helpers, not secret data files
+chmod 644 "$CTT_HOME/lib"/*.sh 2>/dev/null || true
 echo "  → installed lib to $CTT_HOME/lib/"
 
 # 2. Check dependencies

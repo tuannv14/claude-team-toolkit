@@ -119,8 +119,16 @@ slack_api GET "conversations.list?types=public_channel,private_channel&limit=${L
 ### `history <channel> [--limit N]` — recent messages
 
 ```bash
-CHID=$(echo "$1" | sed 's/^#//')
-slack_api GET "conversations.history?channel=$CHID&limit=${LIMIT:-20}" \
+CHID="${1#\#}"
+# Validate Slack channel name/ID: a-z, 0-9, hyphen, underscore only
+case "$CHID" in
+  ''|*[!a-zA-Z0-9_-]*) echo "Invalid channel: $CHID" >&2; return 1 ;;
+esac
+case "$LIMIT" in
+  ''|*[!0-9]*) LIMIT=20 ;;
+esac
+ENCODED=$(printf %s "$CHID" | jq -sRr @uri)
+slack_api GET "conversations.history?channel=$ENCODED&limit=$LIMIT" \
   | jq -r '.messages[] | "\(.ts)\t\(.user // .bot_id)\t\(.text | sub("\n"; " "; "g")[:120])"'
 ```
 

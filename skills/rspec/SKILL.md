@@ -22,7 +22,7 @@ Arguments: `$ARGUMENTS`. Profile resolution: `--profile <name>` → `RSPEC_PROFI
 
 ## Profile config
 
-`~/.rspec/profiles.ini` (mode 600 — but profiles may not contain secrets):
+`~/.rspec/credentials` (mode 600 — though profiles rarely contain secrets, kept consistent with other skills):
 
 ```ini
 [default]
@@ -51,15 +51,14 @@ ctt_load_creds rspec "$PROFILE"
 
 cd "$CTT_PROJECT_PATH" || { echo "No project at $CTT_PROJECT_PATH" >&2; return 1; }
 
-# Build base RSpec command
+# Build base RSpec command as an array — preserves quoting on args with spaces
 build_rspec_cmd() {
-  local cmd="bundle exec rspec"
+  RSPEC_CMD=(bundle exec rspec)
   case "$CTT_SEED_STRATEGY" in
-    fixed:*) cmd="$cmd --seed ${CTT_SEED_STRATEGY#fixed:}" ;;
-    random|"") cmd="$cmd --order random" ;;
+    fixed:*) RSPEC_CMD+=(--seed "${CTT_SEED_STRATEGY#fixed:}") ;;
+    random|"") RSPEC_CMD+=(--order random) ;;
   esac
-  cmd="$cmd --format documentation --format json --out /tmp/rspec.json"
-  echo "$cmd"
+  RSPEC_CMD+=(--format documentation --format json --out /tmp/rspec.json)
 }
 ```
 
@@ -69,7 +68,10 @@ build_rspec_cmd() {
 
 ```bash
 TARGET="${1:-spec/}"
-RAILS_ENV="$CTT_RAILS_ENV" $(build_rspec_cmd) "$TARGET" ${EXAMPLE:+--example "$EXAMPLE"}
+build_rspec_cmd
+EXTRA=()
+[ -n "$EXAMPLE" ] && EXTRA+=(--example "$EXAMPLE")
+RAILS_ENV="$CTT_RAILS_ENV" "${RSPEC_CMD[@]}" "$TARGET" "${EXTRA[@]}"
 ```
 
 After run, parse `/tmp/rspec.json`:
@@ -94,13 +96,13 @@ Failed:" + (
 RSpec writes `.rspec_status` (or `~/.rspec-local`) with last failures:
 
 ```bash
-$(build_rspec_cmd) --only-failures
+build_rspec_cmd; "${RSPEC_CMD[@]}" --only-failures
 ```
 
 ### `next-failure` — run until first failure
 
 ```bash
-$(build_rspec_cmd) --next-failure
+build_rspec_cmd; "${RSPEC_CMD[@]}" --next-failure
 ```
 
 Useful for iterating: fix → run → next failure → fix → ...
@@ -140,7 +142,7 @@ grep -q "SimpleCov.start" spec/rails_helper.rb 2>/dev/null || {
   return 1
 }
 
-COVERAGE=true RAILS_ENV="$CTT_RAILS_ENV" $(build_rspec_cmd) "${1:-spec/}"
+COVERAGE=true RAILS_ENV="$CTT_RAILS_ENV" build_rspec_cmd; "${RSPEC_CMD[@]}" "${1:-spec/}"
 echo ""
 echo "Coverage report: file://$(pwd)/coverage/index.html"
 [ -f coverage/.last_run.json ] && jq -r '"Line coverage: \(.result.line)%"' coverage/.last_run.json
@@ -156,7 +158,7 @@ jq -r '"Examples: \(.summary.example_count)  Failed: \(.summary.failure_count)  
 ### `tag <tag-name> [path]` — run only specs tagged
 
 ```bash
-$(build_rspec_cmd) --tag "$TAG" "${1:-spec/}"
+build_rspec_cmd; "${RSPEC_CMD[@]}" --tag "$TAG" "${1:-spec/}"
 ```
 
 Common tags: `:focus` (for dev), `:slow` (skip in fast loop), `:integration`.

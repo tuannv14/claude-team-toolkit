@@ -97,12 +97,17 @@ maintainers can't audit the decision.
 
 ### `diff [base-branch]` — only NEW vulns vs base
 
+Uses `git worktree add` — **non-destructive**.
+
 ```bash
-git stash -u
-git checkout "${BASE:-main}"
-bundle-audit check --format json > /tmp/ba-base.json 2>/dev/null
-git checkout -
-git stash pop || true
+BASE="${BASE:-main}"
+WT="$(mktemp -d)/bundler-audit-base"
+cleanup() { git worktree remove --force "$WT" 2>/dev/null; rm -rf "$WT"; }
+trap cleanup EXIT INT TERM
+
+git worktree add --quiet "$WT" "$BASE" || { echo "Cannot create worktree at $BASE" >&2; return 1; }
+
+(cd "$WT" && bundle-audit check --format json > /tmp/ba-base.json 2>/dev/null) || true
 bundle-audit check --format json > /tmp/ba-head.json 2>/dev/null
 
 jq -s '

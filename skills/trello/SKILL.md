@@ -95,14 +95,17 @@ load_creds() {
   [ -f "$cred_file" ] || { echo "No credentials. Run: /trello configure" >&2; return 1; }
 
   # Permission check (best-effort on Windows)
-  if [ "$(uname -s)" != "MINGW"* ] && [ "$(uname -s)" != "MSYS"* ]; then
-    local mode
-    mode=$(stat -c '%a' "$cred_file" 2>/dev/null || stat -f '%A' "$cred_file" 2>/dev/null)
-    if [ -n "$mode" ] && [ "$mode" != "600" ] && [ "$mode" != "400" ]; then
-      echo "Refusing to load: $cred_file is mode $mode (must be 600). Run: chmod 600 $cred_file" >&2
-      return 1
-    fi
-  fi
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) ;;  # Windows: chmod is best-effort, skip
+    *)
+      local mode
+      mode=$(stat -c '%a' "$cred_file" 2>/dev/null || stat -f '%A' "$cred_file" 2>/dev/null)
+      if [ -n "$mode" ] && [ "$mode" != "600" ] && [ "$mode" != "400" ]; then
+        echo "Refusing to load: $cred_file is mode $mode (must be 600). Run: chmod 600 $cred_file" >&2
+        return 1
+      fi
+      ;;
+  esac
 
   # Resolve profile
   if [ -z "$profile" ] && [ -f "$active_file" ]; then
