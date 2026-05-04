@@ -2,7 +2,7 @@
 
 > Team-ready Claude Code skill pack — for **dev, QA, QC, testers, and team leads**.
 
-A Claude Code plugin bundling 16 integration skills your whole team can install
+A Claude Code plugin bundling 14 integration skills your whole team can install
 once and start using immediately. All skills support **multiple accounts** via
 INI profile files (AWS-style), so personal/work/client accounts stay isolated
 and switchable on demand.
@@ -18,7 +18,6 @@ and switchable on demand.
 | **heroku** | `/heroku` | Apps, dynos, releases, config vars, logs, pipelines (Platform API v3) |
 | **sentry** | `/sentry` | Issues, events, releases (Sentry SaaS + self-hosted) |
 | **slack** | `/slack` | Post messages, threads, file uploads, channel/user lookup |
-| **aws-s3** | `/aws-s3` | List/upload/download/sync S3 buckets, presigned URLs |
 | **firebase** | `/firebase` | Remote Config, App Distribution, Crashlytics symbols, Functions, Hosting (multi-project) |
 | **postgres** | `/postgres` | Read-only queries, EXPLAIN plans, schema, indexes, locks |
 
@@ -35,8 +34,7 @@ and switchable on demand.
 | Skill | Slash command | What it does |
 |---|---|---|
 | **rspec** | `/rspec` | Run specs, parse failures, parallel, coverage, bisect |
-| **brakeman** | `/brakeman` | Rails static security scanner — SQL injection, XSS, CSRF |
-| **bundler-audit** | `/bundler-audit` | Ruby gem CVE scan from Gemfile.lock |
+| **rails-security** | `/rails-security` | Brakeman static scan + bundler-audit CVE check (combined, with `diff` against base branch) |
 | **k6** | `/k6` | Load/stress/soak/spike tests with environment profiles |
 | **xlsx-testcases** ⭐ | `/xlsx-testcases` | Convert XLSX test cases → Maestro YAML / Detox / Markdown + sync to Azure DevOps Test Plans |
 
@@ -81,10 +79,9 @@ Most skills need `curl` + `jq`. Some need extras:
 | Skill | Extra dependency |
 |---|---|
 | heroku, sentry, slack, trello, azure-devops | `curl`, `jq` |
-| aws-s3 | `aws` CLI v2 (`aws --version`) |
 | firebase | `firebase-tools` (`npm install -g firebase-tools`) |
 | postgres | `psql` (PostgreSQL client) |
-| rspec, brakeman, bundler-audit | Ruby project with bundler |
+| rspec, rails-security | Ruby project with bundler (gems: `brakeman`, `bundler-audit`) |
 | k6 | `k6` binary (`k6 version`) |
 | maestro | `maestro` binary (`curl -Ls "https://get.maestro.mobile.dev" \| bash`) |
 | react-native | Node 18+, Yarn/npm, Watchman, Xcode (iOS), Android Studio (Android) |
@@ -115,11 +112,10 @@ Each `configure` is interactive and:
 /heroku scale my-app web=3
 /sentry issues --query "is:unresolved age:-24h"
 /slack post "#deploys" "v2.1.0 shipped"
-/aws-s3 ls s3://my-bucket/path/
 /postgres query "SELECT count(*) FROM users"
 /rspec run spec/models/user_spec.rb
-/brakeman scan
-/bundler-audit check
+/rails-security audit
+/rails-security diff main
 /k6 run tests/load.js --profile staging
 ```
 
@@ -142,8 +138,8 @@ Add as many accounts as you need:
 TRELLO_PROFILE=work /trello cards <listId>     # via env var
 ```
 
-Same commands across `/azure-devops`, `/heroku`, `/sentry`, `/slack`, `/aws-s3`,
-`/postgres`, `/k6`. **Profile resolution priority:**
+Same commands across `/azure-devops`, `/heroku`, `/sentry`, `/slack`, `/firebase`,
+`/postgres`, `/k6`, `/maestro`, `/fastlane`. **Profile resolution priority:**
 
 1. `--profile <name>` flag
 2. `<SERVICE>_PROFILE` env var (e.g. `HEROKU_PROFILE`, `SLACK_PROFILE`)
@@ -191,7 +187,6 @@ Revoke immediately at the service's token management page:
 - **Heroku:** Account Settings → Applications → Authorizations
 - **Sentry:** User Settings → Auth Tokens
 - **Slack:** https://api.slack.com/apps → your app → OAuth & Permissions → Reinstall
-- **AWS:** IAM Console → Users → Security credentials → deactivate access key
 - **Postgres:** `ALTER USER readonly_user WITH PASSWORD '<new>';`
 
 ---
@@ -214,12 +209,15 @@ claude-team-toolkit/
     ├── heroku/SKILL.md
     ├── sentry/SKILL.md
     ├── slack/SKILL.md
-    ├── aws-s3/SKILL.md
+    ├── firebase/SKILL.md
     ├── postgres/SKILL.md
+    ├── react-native/SKILL.md
+    ├── maestro/SKILL.md
+    ├── fastlane/SKILL.md
     ├── rspec/SKILL.md
-    ├── brakeman/SKILL.md
-    ├── bundler-audit/SKILL.md
-    └── k6/SKILL.md
+    ├── rails-security/SKILL.md
+    ├── k6/SKILL.md
+    └── xlsx-testcases/SKILL.md
 ```
 
 ### Token efficiency
