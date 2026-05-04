@@ -1,6 +1,6 @@
 ---
 name: rspec
-description: Run, parse, and selectively re-run RSpec test suites for Ruby/Rails projects with environment-aware profile support. Use when the user asks to run RSpec tests, run a specific spec file/example, retry only failed tests, get test summary statistics, or check test coverage. Profiles select rails environment + parallel worker count.
+description: RSpec runner for Rails. Parse failures from JSON output, re-run only failed (--only-failures), --next-failure loop, parallel via parallel_tests, simplecov coverage, --bisect order-dependent failures. Multi-project profiles.
 user-invocable: true
 allowed-tools:
   - Read

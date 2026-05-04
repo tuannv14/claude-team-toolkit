@@ -1,6 +1,6 @@
 ---
 name: slack
-description: Send messages, post to channels, fetch threads, and manage Slack workspaces via the Slack Web API with multi-workspace profile support. Use when the user asks to post a Slack message, notify a channel, send a deploy alert, fetch recent thread, list channels/users, or upload a file to Slack. Switch workspaces with --profile <name> or SLACK_PROFILE env var.
+description: Slack post/threads/files/channels via Web API, multi-workspace. Use to post deploy alerts, notify channels, fetch history, upload files, list channels/users. Switch workspaces via --profile or SLACK_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read

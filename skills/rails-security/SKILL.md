@@ -1,6 +1,6 @@
 ---
 name: rails-security
-description: Run Brakeman static security scanner + bundler-audit CVE check on a Ruby on Rails project. Use when the user asks to audit Rails security, scan for SQL injection / XSS / CSRF / mass assignment, check Gemfile.lock for known CVEs, run a pre-PR security gate, or generate a regression-only diff against the base branch. Combines two tools with shared output formatting.
+description: Rails security combo — Brakeman static scan (SQLi/XSS/CSRF/mass assignment) + bundler-audit CVE check on Gemfile.lock. Subcommands vulns/cves/audit/diff/ignore. Diff mode uses git worktree (non-destructive) to show only NEW issues vs base branch.
 user-invocable: true
 allowed-tools:
   - Read

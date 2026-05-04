@@ -1,6 +1,6 @@
 ---
 name: heroku
-description: Manage Heroku apps, dynos, releases, config vars, logs, and pipelines via the Heroku Platform API v3 with multi-account profile support. Use when the user asks to deploy/scale/restart Heroku apps, view config vars, tail logs, promote between pipeline stages, manage add-ons, or rollback releases. Switch accounts with --profile <name> or HEROKU_PROFILE env var.
+description: Heroku apps/dynos/releases/config/logs/pipelines via Platform API v3, multi-account. Use for deploy, scale, restart, config-set, logs tail, pipeline promote, rollback. Auto-masks secret-like config vars. Switch via --profile or HEROKU_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read

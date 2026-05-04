@@ -1,6 +1,6 @@
 ---
 name: k6
-description: Generate, run, and analyze k6 load tests for HTTP APIs and websites with multi-environment target support. Use when the user asks to load test, stress test, soak test, or benchmark an API/website; generate a k6 script; run a k6 test against staging/prod; or interpret k6 results. Profiles select target base URL + auth per environment (dev/staging/prod) so tests stay environment-aware.
+description: k6 load/stress/soak/spike tests. Multi-environment profiles (dev/staging/prod base URLs + auth). Generate scripts (smoke/load/stress/soak/spike), run, analyze p50/p95/p99. Prod profile requires typed RUN confirmation. VU cap protects against accidental DDoS.
 user-invocable: true
 allowed-tools:
   - Read

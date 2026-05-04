@@ -1,6 +1,6 @@
 ---
 name: fastlane
-description: Run Fastlane lanes for iOS and Android mobile release automation including TestFlight, App Store, Play Console, code signing (match), and screenshots. Use when the user asks to release a mobile app, beta-distribute, sign code, generate screenshots, or invoke a Fastlane lane. Profiles isolate iOS/Android team credentials and signing config per app/track.
+description: Fastlane lanes for iOS/Android release — TestFlight, App Store, Play Console, match code signing, screenshots. Multi-app profiles. Use to beta-distribute, sign, submit, or invoke a lane. Apple App Store API key + Play service account JSON.
 user-invocable: true
 allowed-tools:
   - Read

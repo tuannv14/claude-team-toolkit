@@ -1,6 +1,6 @@
 ---
 name: maestro
-description: Run, generate, and analyze Maestro mobile E2E tests for React Native, native iOS, and native Android apps with multi-environment profile support. Use when the user asks to run Maestro flows, write a YAML test, debug a flow, capture device logs/screenshots, or analyze flaky tests. Profiles select target device + app build per environment (dev/staging/prod-build).
+description: Maestro mobile E2E (YAML flows) for RN/iOS/Android. Multi-environment. Use to run flows, record interactively, inspect view hierarchy, detect flaky tests, run on Maestro Cloud. Profiles select device + app build.
 user-invocable: true
 allowed-tools:
   - Read

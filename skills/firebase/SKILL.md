@@ -1,6 +1,6 @@
 ---
 name: firebase
-description: Manage Firebase projects via Firebase CLI for Remote Config, App Distribution, Crashlytics symbols, Functions deployment, and Hosting with multi-project profile support. Use when the user asks to deploy Firebase Functions, push Remote Config, distribute beta builds to testers, upload dSYM/mapping for Crashlytics, or switch between Firebase projects. Profiles map to Firebase project IDs and service account credentials.
+description: Firebase Remote Config, App Distribution, Crashlytics symbols, Functions, Hosting via Firebase CLI. Multi-project. Use to deploy functions, push remote config, distribute beta to testers, upload dSYM/mapping. Switch via --profile or FIREBASE_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read

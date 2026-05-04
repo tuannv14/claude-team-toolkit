@@ -1,6 +1,6 @@
 ---
 name: postgres
-description: Run safe read-only SQL queries, EXPLAIN plans, schema inspection, and admin checks against PostgreSQL databases with multi-database profile support. Use when the user asks to query a Postgres database, check a slow query plan, inspect schema/indexes/locks, or look up table sizes. By default refuses mutating SQL (UPDATE/DELETE/DROP/TRUNCATE) without explicit --write flag and confirmation. Switch DBs with --profile <name> or PG_PROFILE env var.
+description: PostgreSQL read-only queries, EXPLAIN, schema/indexes/locks, slow queries. Multi-database. Refuses mutating SQL without --write + typed confirmation. Profile-level read_only flag for prod safety. Switch via --profile or PG_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read

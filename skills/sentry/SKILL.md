@@ -1,6 +1,6 @@
 ---
 name: sentry
-description: Query Sentry issues, events, releases, and projects via the Sentry API with multi-organization profile support. Use when the user asks to fetch Sentry issues, list errors, mark issues resolved, find recent crashes, look up release health, or correlate errors to deploys. Switch orgs/projects with --profile <name> or SENTRY_PROFILE env var.
+description: Sentry issues/events/releases via API, multi-org. Use to fetch errors, list issues, resolve/assign, look up release health, correlate to deploys. Works with sentry.io and self-hosted. Switch via --profile or SENTRY_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read
