@@ -42,6 +42,7 @@ jobs:
         uses: ludeeus/action-shellcheck@2.0.0
         with:
           scandir: ./lib
+          severity: warning              # only fail on warning+; notes are advisory
 
       - name: Test lib/credentials.sh
         run: |

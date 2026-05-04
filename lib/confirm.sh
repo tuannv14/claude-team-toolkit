@@ -26,7 +26,12 @@ ctt_confirm() {
     echo "Type '$require_phrase' exactly to proceed:" >&2
     local answer
     read -r answer
-    [ "$answer" = "$require_phrase" ] && return 0 || { echo "Aborted." >&2; return 1; }
+    if [ "$answer" = "$require_phrase" ]; then
+      return 0
+    else
+      echo "Aborted." >&2
+      return 1
+    fi
   else
     echo "$prompt [y/N]" >&2
     local answer
