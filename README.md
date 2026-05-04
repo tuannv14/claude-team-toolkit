@@ -1,7 +1,7 @@
 # claude-team-toolkit
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.6.1-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
+[![Version](https://img.shields.io/badge/version-0.6.2-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
 [![Skills](https://img.shields.io/badge/skills-14-orange.svg)](#whats-included)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-7a3aff.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 
@@ -128,28 +128,121 @@ Each `configure` is interactive and:
 
 ## Multi-account workflow
 
-Add as many accounts as you need:
+All credential-based skills follow the same INI profile pattern (modeled
+after AWS CLI). Add unlimited profiles per service: personal, work, multiple
+clients, dev/staging/prod environments — each isolated.
+
+### Which skills support multi-account
+
+| Skill | Credentials file | Per-profile fields |
+|---|---|---|
+| **trello** | `~/.trello/credentials` | `key`, `token` |
+| **azure-devops** | `~/.azure-devops/credentials` | `org_url`, `pat`, `api_version`, `project`, `insecure` |
+| **heroku** | `~/.heroku/credentials` | `api_key`, `default_app`, `require_confirm` |
+| **sentry** | `~/.sentry/credentials` | `api_url`, `auth_token`, `org`, `project` |
+| **slack** | `~/.slack/credentials` | `bot_token`, `default_channel`, `require_confirm` |
+| **firebase** | `~/.firebase/credentials` | `project_id`, `service_account`, `ios_app_id`, `android_app_id` |
+| **postgres** | `~/.postgres/credentials` | `host`, `port`, `database`, `user`, `password`, `sslmode`, `read_only`, `require_confirm` |
+| **maestro** | `~/.maestro/profiles.ini` | `platform`, `device`, `app_id`, `flows_dir`, `cloud_api_key` |
+| **fastlane** | `~/.fastlane/credentials` | `appstore_api_*`, `google_play_json_key`, `match_*` |
+| **k6** | `~/.k6/credentials` | `base_url`, `auth_header`, `vus`, `duration`, `require_confirm` |
+| **rspec** | `~/.rspec/credentials` | `project_path`, `rails_env`, `workers`, `seed_strategy` |
+
+**No multi-account** (purely local, no remote auth):
+`react-native`, `rails-security`, `xlsx-testcases` (the latter reuses the
+`/azure-devops` profile when syncing to Test Plans).
+
+See [examples/](examples/) for sanitized credential templates.
+
+### How to add and switch profiles
 
 ```bash
+# 1) Add accounts interactively (skill validates against live API before saving)
 /trello configure                              # creates [default]
 /trello configure                              # add another → name it "work"
 /trello configure                              # add another → name it "client_a"
 
-/trello profile list                           # see all profiles
-/trello profile use work                       # switch active default
-/trello profile current                        # show active
+# 2) Manage them
+/trello profile list                           # show all profiles, * marks active
+/trello profile current                        # show active + masked token
+/trello profile use work                       # set "work" as active default
+/trello profile remove client_a                # delete a profile
 
-/trello --profile client_a boards              # one-off override
-TRELLO_PROFILE=work /trello cards <listId>     # via env var
+# 3) Use them
+/trello --profile client_a boards              # one-off override (highest priority)
+TRELLO_PROFILE=work /trello cards <listId>     # via env var (per-shell session)
+/trello boards                                 # uses active profile or [default]
 ```
 
-Same commands across `/azure-devops`, `/heroku`, `/sentry`, `/slack`, `/firebase`,
-`/postgres`, `/k6`, `/maestro`, `/fastlane`. **Profile resolution priority:**
+Same dispatch commands across **all 11 multi-account skills**. Replace
+`trello` with `azure-devops`, `heroku`, `sentry`, `slack`, `firebase`,
+`postgres`, `k6`, `maestro`, `fastlane`, or `rspec`.
 
-1. `--profile <name>` flag
-2. `<SERVICE>_PROFILE` env var (e.g. `HEROKU_PROFILE`, `SLACK_PROFILE`)
-3. `~/.<service>/active_profile` (set by `profile use`)
-4. `[default]` section
+### Profile resolution priority
+
+When you call a skill, the active profile is resolved in this order
+(first match wins):
+
+1. **`--profile <name>` flag** — highest priority, per-call override
+2. **`<SERVICE>_PROFILE` env var** — per-shell session
+   - `TRELLO_PROFILE`, `HEROKU_PROFILE`, `SENTRY_PROFILE`, `SLACK_PROFILE`,
+     `FIREBASE_PROFILE`, `PG_PROFILE`, `K6_PROFILE`, `MAESTRO_PROFILE`,
+     `FASTLANE_PROFILE`, `RSPEC_PROFILE`
+   - `azure-devops` accepts both `AZDO_PROFILE` and `AZURE_DEVOPS_PROFILE`
+3. **`~/.<service>/active_profile`** — written by `profile use`, persists across sessions
+4. **`[default]` section** — fallback if nothing else is set
+
+### How Claude auto-detects which skill to use
+
+Claude reads each skill's frontmatter `description` at session start
+(~779 tokens total for all 14 skills) to route incoming requests:
+
+| You say | Claude routes to |
+|---|---|
+| "fetch this trello card" / paste `https://trello.com/c/...` URL | `/trello card <id>` |
+| "list azure devops PRs" / mention an ADO repo | `/azure-devops pr-list` |
+| "scale my heroku app" / "promote staging to prod" | `/heroku scale` or `/heroku promote` |
+| "any sentry errors today?" | `/sentry issues` |
+| "post this to slack" | `/slack post` |
+| "deploy firebase functions" | `/firebase fn-deploy` |
+| "what's the slowest query?" | `/postgres slow` |
+| "run e2e on this flow" | `/maestro run` |
+| "release iOS to TestFlight" | `/fastlane beta-ios` |
+| "load test the staging API" | `/k6 run` |
+| "rerun only failed specs" | `/rspec failed` |
+| "scan for SQL injection" / "any new CVEs?" | `/rails-security` |
+| "convert these xlsx test cases to maestro" | `/xlsx-testcases gen maestro` |
+| "clean RN build" / "bump app version" | `/react-native` |
+
+Switching profiles in conversation works the same way: tell Claude *"on the
+work account, list my Trello boards"* — Claude understands and runs
+`/trello --profile work boards`.
+
+### Adapting to your project
+
+Nothing in this toolkit is tied to a specific project, organization, or
+host. To use it for **your** project:
+
+1. **Configure your accounts**: run `/<skill> configure` for each service
+   you use. Pick profile names that match your own workflow
+   (`personal`, `work`, `acme-corp`, `staging`, `prod`, etc.).
+2. **Set per-project defaults** with env vars in your project's `.env`
+   (which is `.gitignore`d):
+   ```bash
+   AZDO_PROFILE=acme-corp
+   HEROKU_PROFILE=staging
+   PG_PROFILE=staging-readonly
+   ```
+3. **Drop a `.testcase-schema.yml`** in your xlsx folder to tell
+   `/xlsx-testcases` how to read your column layout (template in
+   [examples/](examples/.testcase-schema.example.yml)).
+4. **Mark prod profiles** with `require_confirm = true` and (for postgres)
+   `read_only = true` so destructive ops require explicit typed
+   confirmation.
+5. **Audit log** at `~/.claude-team-toolkit/audit.log` records every
+   mutation as `timestamp <TAB> service <TAB> profile <TAB> action`.
+   Ship to your SIEM (filebeat / fluentd / cloudwatch agent) for
+   centralized audit if needed.
 
 ---
 
