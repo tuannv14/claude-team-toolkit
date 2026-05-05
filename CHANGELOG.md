@@ -7,6 +7,24 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-05-05
+
+### Documentation
+- `shopify` skill: clarified multi-app support. The `(shop_domain,
+  access_token)` profile pair naturally supports multi-app — multiple
+  Custom Apps per store, each with least-privilege scopes, separate audit
+  trail, and independent revocation.
+- `examples/shopify-credentials.example`: rewrote with three patterns
+  (multi-STORE, multi-APP on same store, MATRIX of stores × apps) and
+  recommended naming convention `<store>-<app-purpose>`.
+- `README.md`: noted multi-app support in shopify profile fields row.
+- `skills/shopify/SKILL.md`: added "Why multi-app on the same store"
+  rationale (least-privilege, audit separation, revocation granularity,
+  team boundaries).
+
+### Notes
+No code changes. Pure documentation release.
+
 ## [0.8.0] - 2026-05-05
 
 ### Added
@@ -115,7 +133,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Initial release with trello and azure-devops skills
 - `plugin.json` manifest, README, `.gitignore`, MIT LICENSE
 
-[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.6.3...v0.7.0
 [0.6.3]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.6.2...v0.6.3

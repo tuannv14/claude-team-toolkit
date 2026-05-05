@@ -19,9 +19,12 @@ Arguments: `$ARGUMENTS`. Profile resolution: `--profile` → `SHOPIFY_PROFILE`
 
 ## Profile config
 
-`~/.shopify/credentials` (mode 600):
+`~/.shopify/credentials` (mode 600). Each profile is one
+`(shop_domain, access_token)` pair. Supports **multi-store** AND
+**multi-app on the same store**.
 
 ```ini
+# Multi-STORE
 [default]
 shop_domain  = your-store.myshopify.com
 access_token = shpat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -32,7 +35,28 @@ shop_domain  = client-a.myshopify.com
 access_token = shpat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 api_version  = 2026-04
 require_confirm = true                 # prod store — gate every mutation
+
+# Multi-APP on the same store (least-privilege per app)
+[main-products]
+shop_domain  = your-store.myshopify.com
+access_token = shpat_products-app-token        # scopes: read/write_products only
+api_version  = 2026-04
+
+[main-inventory]
+shop_domain  = your-store.myshopify.com
+access_token = shpat_inventory-app-token       # scopes: read/write_inventory only
+api_version  = 2026-04
+require_confirm = true
 ```
+
+**Why multi-app on the same store?**
+- **Least-privilege scopes**: leak of marketing app doesn't expose inventory
+- **Audit separation**: Shopify admin shows API calls per app
+- **Revocation granularity**: uninstall one app without breaking others
+- **Team boundaries**: different teams own different apps
+
+See `examples/shopify-credentials.example` for full multi-store + multi-app
+templates.
 
 **Get an access token (Custom App):**
 

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/tuannv14/claude-team-toolkit/actions/workflows/lint.yml/badge.svg)](https://github.com/tuannv14/claude-team-toolkit/actions/workflows/lint.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.8.0-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
+[![Version](https://img.shields.io/badge/version-0.8.1-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
 [![Skills](https://img.shields.io/badge/skills-15-orange.svg)](#whats-included)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-7a3aff.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![ClaudePluginHub](https://img.shields.io/badge/ClaudePluginHub-listed-success.svg)](https://www.claudepluginhub.com/plugins/tuannv14-claude-team-toolkit)
@@ -145,7 +145,7 @@ clients, dev/staging/prod environments — each isolated.
 | **sentry** | `~/.sentry/credentials` | `api_url`, `auth_token`, `org`, `project` |
 | **slack** | `~/.slack/credentials` | `bot_token`, `default_channel`, `require_confirm` |
 | **firebase** | `~/.firebase/credentials` | `project_id`, `service_account`, `ios_app_id`, `android_app_id` |
-| **shopify** | `~/.shopify/credentials` | `shop_domain`, `access_token`, `api_version`, `require_confirm` |
+| **shopify** | `~/.shopify/credentials` | `shop_domain`, `access_token`, `api_version`, `require_confirm` (supports multi-store **and** multi-app on the same store via separate profiles) |
 | **postgres** | `~/.postgres/credentials` | `host`, `port`, `database`, `user`, `password`, `sslmode`, `read_only`, `require_confirm` |
 | **maestro** | `~/.maestro/profiles.ini` | `platform`, `device`, `app_id`, `flows_dir`, `cloud_api_key` |
 | **fastlane** | `~/.fastlane/credentials` | `appstore_api_*`, `google_play_json_key`, `match_*` |
