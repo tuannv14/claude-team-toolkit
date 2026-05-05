@@ -2,14 +2,14 @@
 
 [![CI](https://github.com/tuannv14/claude-team-toolkit/actions/workflows/lint.yml/badge.svg)](https://github.com/tuannv14/claude-team-toolkit/actions/workflows/lint.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.7.0-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
-[![Skills](https://img.shields.io/badge/skills-14-orange.svg)](#whats-included)
+[![Version](https://img.shields.io/badge/version-0.8.0-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
+[![Skills](https://img.shields.io/badge/skills-15-orange.svg)](#whats-included)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-7a3aff.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![ClaudePluginHub](https://img.shields.io/badge/ClaudePluginHub-listed-success.svg)](https://www.claudepluginhub.com/plugins/tuannv14-claude-team-toolkit)
 
 > Team-ready Claude Code skill pack — for **dev, QA, QC, testers, and team leads**.
 
-A Claude Code plugin bundling 14 integration skills your whole team can install
+A Claude Code plugin bundling 15 integration skills your whole team can install
 once and start using immediately. All skills support **multiple accounts** via
 INI profile files (AWS-style), so personal/work/client accounts stay isolated
 and switchable on demand.
@@ -26,6 +26,7 @@ and switchable on demand.
 | **sentry** | `/sentry` | Issues, events, releases (Sentry SaaS + self-hosted) |
 | **slack** | `/slack` | Post messages, threads, file uploads, channel/user lookup |
 | **firebase** | `/firebase` | Remote Config, App Distribution, Crashlytics symbols, Functions, Hosting (multi-project) |
+| **shopify** | `/shopify` | Shopify Admin GraphQL API — products/orders/customers/inventory/draft orders (multi-store, latest API 2026-04) |
 | **postgres** | `/postgres` | Read-only queries, EXPLAIN plans, schema, indexes, locks |
 
 ### Mobile (React Native, iOS, Android)
@@ -144,6 +145,7 @@ clients, dev/staging/prod environments — each isolated.
 | **sentry** | `~/.sentry/credentials` | `api_url`, `auth_token`, `org`, `project` |
 | **slack** | `~/.slack/credentials` | `bot_token`, `default_channel`, `require_confirm` |
 | **firebase** | `~/.firebase/credentials` | `project_id`, `service_account`, `ios_app_id`, `android_app_id` |
+| **shopify** | `~/.shopify/credentials` | `shop_domain`, `access_token`, `api_version`, `require_confirm` |
 | **postgres** | `~/.postgres/credentials` | `host`, `port`, `database`, `user`, `password`, `sslmode`, `read_only`, `require_confirm` |
 | **maestro** | `~/.maestro/profiles.ini` | `platform`, `device`, `app_id`, `flows_dir`, `cloud_api_key` |
 | **fastlane** | `~/.fastlane/credentials` | `appstore_api_*`, `google_play_json_key`, `match_*` |
@@ -176,9 +178,9 @@ TRELLO_PROFILE=work /trello cards <listId>     # via env var (per-shell session)
 /trello boards                                 # uses active profile or [default]
 ```
 
-Same dispatch commands across **all 11 multi-account skills**. Replace
+Same dispatch commands across **all 12 multi-account skills**. Replace
 `trello` with `azure-devops`, `heroku`, `sentry`, `slack`, `firebase`,
-`postgres`, `k6`, `maestro`, `fastlane`, or `rspec`.
+`shopify`, `postgres`, `k6`, `maestro`, `fastlane`, or `rspec`.
 
 ### Profile resolution priority
 
@@ -188,8 +190,8 @@ When you call a skill, the active profile is resolved in this order
 1. **`--profile <name>` flag** — highest priority, per-call override
 2. **`<SERVICE>_PROFILE` env var** — per-shell session
    - `TRELLO_PROFILE`, `HEROKU_PROFILE`, `SENTRY_PROFILE`, `SLACK_PROFILE`,
-     `FIREBASE_PROFILE`, `PG_PROFILE`, `K6_PROFILE`, `MAESTRO_PROFILE`,
-     `FASTLANE_PROFILE`, `RSPEC_PROFILE`
+     `FIREBASE_PROFILE`, `SHOPIFY_PROFILE`, `PG_PROFILE`, `K6_PROFILE`,
+     `MAESTRO_PROFILE`, `FASTLANE_PROFILE`, `RSPEC_PROFILE`
    - `azure-devops` accepts both `AZDO_PROFILE` and `AZURE_DEVOPS_PROFILE`
 3. **`~/.<service>/active_profile`** — written by `profile use`, persists across sessions
 4. **`[default]` section** — fallback if nothing else is set
@@ -207,6 +209,7 @@ Claude reads each skill's frontmatter `description` at session start
 | "any sentry errors today?" | `/sentry issues` |
 | "post this to slack" | `/slack post` |
 | "deploy firebase functions" | `/firebase fn-deploy` |
+| "list shopify products" / "open orders this week" / paste myshopify URL | `/shopify products` or `/shopify orders` |
 | "what's the slowest query?" | `/postgres slow` |
 | "run e2e on this flow" | `/maestro run` |
 | "release iOS to TestFlight" | `/fastlane beta-ios` |

@@ -7,6 +7,22 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-05-05
+
+### Added
+- New skill: **`shopify`** — Shopify Admin GraphQL API for products, orders,
+  customers, inventory, draft orders. Multi-store profiles. Default API
+  version 2026-04 (latest stable as of May 2026, supported until April 2027).
+  GraphQL primary (Shopify's recommended API), REST fallback for legacy
+  endpoints. Includes raw `gql` escape hatch and bulk operations support.
+- `examples/shopify-credentials.example` — multi-store template with scope
+  guidance per operation.
+
+### Changed
+- Skill count: 14 → **15**
+- README: shopify added to all relevant sections (skill table, multi-account
+  fields, env var list, auto-detect routing, install dependencies)
+
 ## [0.7.0] - 2026-05-05
 
 ### Added
@@ -99,7 +115,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Initial release with trello and azure-devops skills
 - `plugin.json` manifest, README, `.gitignore`, MIT LICENSE
 
-[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.6.3...v0.7.0
 [0.6.3]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.6.1...v0.6.2
