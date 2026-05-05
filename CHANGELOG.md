@@ -7,6 +7,48 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-05-05
+
+### Changed
+- **Radical honesty pass on token economics**: previous v0.9.0 numbers
+  were measured correctly with tiktoken but the "without toolkit" baseline
+  was a heuristic (`body × 1.5 + retry`). When measured against 18 actual
+  sample responses Claude would generate ad-hoc, the realistic ad-hoc cost
+  is ~163 tokens per task (median 167, range 104-232) — much lower than
+  the heuristic predicted. This means **the toolkit costs MORE tokens than
+  ad-hoc Claude for common APIs**, not less.
+- **Reframed value proposition** from "~50% token savings" to honest
+  positioning: the toolkit's value is multi-account profiles + audit
+  logging + safety gates + standardization + xlsx-testcases unique
+  workflow. Token cost is the price for these benefits, paid back only on
+  specific workloads (multi-account, uncommon APIs, retry-heavy tasks).
+- **README Token Economics section rewritten** with:
+  - Measured baseline from 18 sample tasks (not heuristic)
+  - Honest table showing toolkit costs 3-16× more on pure token comparison
+  - Three real-world cost categories the comparison ignores (auth context
+    repetition, retry overhead on uncommon APIs, impossible workflows)
+  - When-to-use vs when-NOT-to-use checklist
+  - Real value table (multi-account, audit, safety, etc.)
+
+### Added
+- `scripts/benchmark_realistic_baseline.py` — measures 18 sample ad-hoc
+  Claude responses across 7 skills. Shows ~163 token mean per task.
+- `scripts/benchmark_cross_validate.py` — cross-validates token counts
+  across 3 methods (cl100k_base, o200k_base, char-based). Confirms ±3-7%
+  spread, validating numbers within stated uncertainty.
+
+### Notes
+This release is functionally equivalent to v0.9.0 — same skills, same
+APIs, same security model. Documentation only. The point is that being
+**honest about when the toolkit pays off** is a competitive advantage:
+users can verify our claims with `python3 scripts/benchmark_*.py` and
+trust the rest of the README.
+
+If you adopted v0.8.x or v0.9.0 expecting "74% token savings", read the
+new Token Economics section. The toolkit's real value is workflow
+consistency, not token reduction. Decide based on whether you actually
+need multi-account / audit / safety / xlsx-testcases.
+
 ## [0.9.0] - 2026-05-05
 
 ### Changed
@@ -169,7 +211,8 @@ No code changes. Pure documentation release.
 - Initial release with trello and azure-devops skills
 - `plugin.json` manifest, README, `.gitignore`, MIT LICENSE
 
-[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.7.0...v0.8.0
