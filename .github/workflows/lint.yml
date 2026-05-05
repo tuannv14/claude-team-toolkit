@@ -12,10 +12,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate plugin.json
+      - name: Validate plugin.json + marketplace.json present
         run: |
           jq empty .claude-plugin/plugin.json
           test "$(jq -r .name .claude-plugin/plugin.json)" = "claude-team-toolkit"
+          test -f .claude-plugin/marketplace.json \
+            || { echo "FAIL: .claude-plugin/marketplace.json is required for users to add this as a Claude Code marketplace"; exit 1; }
+          jq empty .claude-plugin/marketplace.json
+          test "$(jq -r '.plugins | length' .claude-plugin/marketplace.json)" -ge 1 \
+            || { echo "FAIL: marketplace.json must list at least one plugin"; exit 1; }
 
       - name: Schema check — plugin.json author/repository shapes
         run: |

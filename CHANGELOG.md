@@ -7,6 +7,35 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-05-05
+
+### Fixed (CRITICAL)
+- **Missing `.claude-plugin/marketplace.json`** — without this file,
+  `claude plugin marketplace add tuannv14/claude-team-toolkit` failed
+  with "Marketplace file not found". This means **the documented install
+  command in README never worked** for any version before 0.9.3.
+- Discovered during local install verification immediately after
+  fixing v0.9.2 schema bugs.
+
+### Added
+- `.claude-plugin/marketplace.json` — single-plugin marketplace manifest
+  pointing to this repo as both the marketplace and the plugin source.
+  Schema follows Anthropic's official marketplace.schema.json.
+- Full keyword/tag/category metadata so the plugin is discoverable in
+  marketplace UI.
+
+### Verified
+```bash
+claude plugin validate .  # ✔ Validation passed
+claude plugin marketplace add tuannv14/claude-team-toolkit  # works
+claude plugin install claude-team-toolkit  # works
+```
+
+### How CI missed this
+CI's lint.yml validates `plugin.json` schema and SKILL.md frontmatter,
+but did not require a `marketplace.json`. Adding a CI step now to require
+its presence so this can never happen again.
+
 ## [0.9.2] - 2026-05-05
 
 ### Fixed (CRITICAL)
@@ -244,7 +273,8 @@ No code changes. Pure documentation release.
 - Initial release with trello and azure-devops skills
 - `plugin.json` manifest, README, `.gitignore`, MIT LICENSE
 
-[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.2...HEAD
+[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.3...HEAD
+[0.9.3]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.8.1...v0.9.0
