@@ -10,7 +10,7 @@ jobs:
   validate-skill-format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Validate plugin.json + marketplace.json present
         run: |
@@ -141,7 +141,7 @@ jobs:
   no-credential-leak:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Verify no real credential patterns
         run: |
