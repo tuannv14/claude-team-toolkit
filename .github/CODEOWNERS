@@ -1,0 +1,12 @@
+# Default owner for everything in the repo
+* @tuannv14
+
+# Skills folder — same default until contributors join
+/skills/ @tuannv14
+
+# Shared lib — changes here affect every skill
+/lib/ @tuannv14
+
+# Plugin manifest + CI — guard rails
+/.claude-plugin/ @tuannv14
+/.github/ @tuannv14

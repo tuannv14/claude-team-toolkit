@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/tuannv14/claude-team-toolkit/blob/main/SECURITY.md
+    about: Do not open a public issue for security reports — see SECURITY.md
+  - name: Question or discussion
+    url: https://github.com/tuannv14/claude-team-toolkit/discussions
+    about: Ask questions or discuss ideas with the community
+  - name: ClaudePluginHub listing
+    url: https://www.claudepluginhub.com/plugins/tuannv14-claude-team-toolkit
+    about: View this plugin on ClaudePluginHub

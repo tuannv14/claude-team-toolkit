@@ -1,6 +1,6 @@
 {
   "name": "claude-team-toolkit",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "description": "Team-ready Claude Code skill pack with 14 integrations spanning service APIs (Trello, Azure DevOps, Heroku, Sentry, Slack, Firebase), data ops (PostgreSQL), test/QA (RSpec, Rails security, k6, Maestro, xlsx-testcases), and mobile (React Native, Fastlane). Multi-account profile support, audit logging, security-first defaults. For dev, QA, QC, testers, and team leads.",
   "keywords": [
     "trello",
