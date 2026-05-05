@@ -1,6 +1,6 @@
 ---
 name: slack
-description: Slack post/threads/files/channels via Web API, multi-workspace. Use to post deploy alerts, notify channels, fetch history, upload files, list channels/users. Switch workspaces via --profile or SLACK_PROFILE.
+description: Slack post/threads/files via Web API. Use to post deploy alerts, fetch history, upload files, list channels. Multi-workspace via SLACK_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read

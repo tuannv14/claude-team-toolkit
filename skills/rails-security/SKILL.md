@@ -1,212 +1,135 @@
 ---
 name: rails-security
-description: Rails security combo — Brakeman static scan (SQLi/XSS/CSRF/mass assignment) + bundler-audit CVE check on Gemfile.lock. Subcommands vulns/cves/audit/diff/ignore. Diff mode uses git worktree (non-destructive) to show only NEW issues vs base branch.
+description: Brakeman + bundler-audit combined for Rails security. Use for SQL injection/XSS/CSRF + Gemfile.lock CVE scans. Diff mode shows only NEW issues vs base branch (git worktree, non-destructive).
 user-invocable: true
 allowed-tools:
   - Read
   - Bash
 ---
 
-# /rails-security — Brakeman + bundler-audit (Rails-only)
+# /rails-security — Brakeman + bundler-audit
 
-Combined skill for the two Rails-focused security scanners. No credentials —
-purely local static analysis.
-
-| Tool | What it scans | Output |
-|---|---|---|
-| **Brakeman** | App code — SQL injection, XSS, CSRF, mass assignment, unsafe redirects, etc. | warnings with file:line |
-| **bundler-audit** | `Gemfile.lock` — known CVEs in installed gem versions | advisories with upgrade path |
-
-Arguments: `$ARGUMENTS`. First token = subcommand: `vulns`, `cves`, `audit`, `diff`, `ignore`, `update`.
+Combined Rails security scan. No credentials. Subcommands:
+`vulns`, `cves`, `audit`, `diff`, `ignore`, `update`.
 
 ## Dependencies
 
 ```bash
 gem install brakeman bundler-audit
-brakeman --version
-bundle-audit --version          # binary is bundle-audit (with hyphen)
 ```
 
-If either is missing, the corresponding subcommand will skip with a clear
-message.
-
-Running inside a Rails project (must contain `Gemfile.lock` for `cves`).
+If a tool is missing, the relevant subcommand is skipped with a clear message.
 
 ## Helpers
 
 ```bash
-# Brakeman: prefer Gemfile-pinned version if available
 brakeman_cmd() {
-  local cmd=()
   if [ -f "${1:-.}/Gemfile" ] && grep -q "brakeman" "${1:-.}/Gemfile" 2>/dev/null; then
-    cmd=(bundle exec brakeman)
+    echo "bundle exec brakeman"
   else
-    cmd=(brakeman)
+    echo "brakeman"
   fi
-  printf '%s\n' "${cmd[@]}"
 }
 ```
 
 ## Dispatch
 
 ### `vulns [path] [--severity high|medium|low|all]` — Brakeman scan
-
 ```bash
-PATH_ARG="${1:-.}"
-SEV="${SEV:-medium}"
-
-mapfile -t CMD < <(brakeman_cmd "$PATH_ARG")
+PATH_ARG="${1:-.}"; SEV="${SEV:-medium}"
+mapfile -t CMD < <(brakeman_cmd "$PATH_ARG" | tr ' ' '\n')
 "${CMD[@]}" -p "$PATH_ARG" -f json -o /tmp/brakeman.json --no-progress 2>/dev/null
 
 jq -r --arg sev "$SEV" '
-  .warnings[]
-  | select(
-      ($sev=="all") or
-      ($sev=="high"   and .confidence=="High") or
-      ($sev=="medium" and (.confidence=="High" or .confidence=="Medium")) or
-      ($sev=="low"    and true)
-    )
-  | "[\(.confidence)] \(.warning_type): \(.message)\n  \(.file):\(.line)\n"
+  .warnings[] | select(
+    ($sev=="all") or
+    ($sev=="high" and .confidence=="High") or
+    ($sev=="medium" and (.confidence=="High" or .confidence=="Medium")) or
+    ($sev=="low" and true))
+  | "[\(.confidence)] \(.warning_type): \(.message)\n  \(.file):\(.line)"
 ' /tmp/brakeman.json
 
-jq -r '"Scanned \(.scan_info.number_of_controllers) controllers, \(.scan_info.number_of_models) models in \(.scan_info.duration)s"' /tmp/brakeman.json
 jq -r '.warnings | group_by(.confidence) | .[] | "\(.[0].confidence): \(length)"' /tmp/brakeman.json
 ```
 
 ### `cves [path]` — bundler-audit CVE scan
-
 ```bash
 PROJ="${1:-.}"
-[ -f "$PROJ/Gemfile.lock" ] || { echo "No Gemfile.lock at $PROJ" >&2; return 1; }
+[ -f "$PROJ/Gemfile.lock" ] || { echo "No Gemfile.lock" >&2; return 1; }
 
 bundle-audit update --quiet 2>/dev/null || true
 (cd "$PROJ" && bundle-audit check --format json) > /tmp/bundler-audit.json 2>/dev/null
 
 jq -r '
-  .results[]?
-  | "[\(.advisory.criticality // "unknown" | ascii_upcase)] \(.gem.name) \(.gem.version)
-  CVE: \(.advisory.cve // .advisory.id)
-  Fix: upgrade to \(.advisory.patched_versions | join(", "))
-  \(.advisory.title)
-  \(.advisory.url)"
-' /tmp/bundler-audit.json
-
-jq -r '
-  if (.results // []) | length == 0 then "No vulnerabilities."
-  else "\(.results | length) vuln(s) found." end
+  .results[]? | "[\(.advisory.criticality // "unknown" | ascii_upcase)] \(.gem.name) \(.gem.version)
+  CVE: \(.advisory.cve // .advisory.id)  Fix: upgrade to \(.advisory.patched_versions | join(", "))
+  \(.advisory.title)"
 ' /tmp/bundler-audit.json
 ```
 
-### `audit [path]` — both scanners + combined exit status
-
+### `audit [path]` — both + pre-PR gate (exit non-zero on HIGH or any CVE)
 ```bash
-echo "=== Code (Brakeman) ==="
-"$0" vulns "$1"
-echo ""
-echo "=== Dependencies (bundler-audit) ==="
-"$0" cves "$1"
+"$0" vulns "$1"; echo ""; "$0" cves "$1"
 
-# Pre-PR gate: exit non-zero if HIGH-confidence Brakeman OR any CVE
 HIGH_BR=$(jq -r '[.warnings[] | select(.confidence=="High")] | length' /tmp/brakeman.json 2>/dev/null || echo 0)
 CVES=$(jq -r '(.results // []) | length' /tmp/bundler-audit.json 2>/dev/null || echo 0)
 
-if [ "$HIGH_BR" -gt 0 ] || [ "$CVES" -gt 0 ]; then
-  echo ""
-  echo "GATE: ${HIGH_BR} high-confidence Brakeman warnings + ${CVES} CVEs"
+[ "$HIGH_BR" -gt 0 ] || [ "$CVES" -gt 0 ] && {
+  echo "GATE: $HIGH_BR HIGH Brakeman + $CVES CVEs"
   return 1
-fi
+}
 ```
 
 ### `diff [base-branch]` — only NEW issues vs base (non-destructive)
 
-Uses `git worktree add` to a temp directory — your working tree is never touched.
+Uses `git worktree add` — your working tree is NEVER modified.
 
 ```bash
 BASE="${BASE:-main}"
 WT="$(mktemp -d)/rails-security-base"
-cleanup() { git worktree remove --force "$WT" 2>/dev/null; rm -rf "$WT"; }
-trap cleanup EXIT INT TERM
+trap "git worktree remove --force $WT 2>/dev/null; rm -rf $WT" EXIT INT TERM
 
-git worktree add --quiet "$WT" "$BASE" || { echo "Cannot create worktree at $BASE" >&2; return 1; }
+git worktree add --quiet "$WT" "$BASE" || { echo "Cannot worktree at $BASE" >&2; return 1; }
 
-# Brakeman diff by fingerprint
-mapfile -t CMD < <(brakeman_cmd ".")
+mapfile -t CMD < <(brakeman_cmd "." | tr ' ' '\n')
 (cd "$WT" && "${CMD[@]}" -f json -o /tmp/brakeman-base.json --no-progress 2>/dev/null) || true
 "${CMD[@]}" -f json -o /tmp/brakeman-head.json --no-progress 2>/dev/null
 
-echo "=== NEW Brakeman warnings ==="
-jq -s '
-  (.[0].warnings | map(.fingerprint)) as $base
-  | .[1].warnings | map(select(.fingerprint as $f | $base | index($f) | not))
-  | .[] | "[\(.confidence)] \(.warning_type) — \(.file):\(.line)\n  \(.message)"
-' /tmp/brakeman-base.json /tmp/brakeman-head.json
+echo "=== NEW Brakeman ==="
+jq -s '(.[0].warnings|map(.fingerprint)) as $b | .[1].warnings | map(select(.fingerprint as $f | $b | index($f) | not)) | .[] | "[\(.confidence)] \(.warning_type) — \(.file):\(.line)"' /tmp/brakeman-base.json /tmp/brakeman-head.json
 
-# bundler-audit diff by advisory id
 (cd "$WT" && bundle-audit check --format json) > /tmp/ba-base.json 2>/dev/null || echo '{}' > /tmp/ba-base.json
 bundle-audit check --format json > /tmp/ba-head.json 2>/dev/null || echo '{}' > /tmp/ba-head.json
 
-echo ""
-echo "=== NEW CVEs ==="
-jq -s '
-  (.[0].results // [] | map(.advisory.id)) as $base
-  | (.[1].results // []) | map(select(.advisory.id as $id | $base | index($id) | not))
-  | .[] | "\(.gem.name) \(.gem.version) — \(.advisory.cve // .advisory.id) — \(.advisory.title)"
-' /tmp/ba-base.json /tmp/ba-head.json
+echo ""; echo "=== NEW CVEs ==="
+jq -s '(.[0].results//[]|map(.advisory.id)) as $b | (.[1].results//[]) | map(select(.advisory.id as $id | $b | index($id) | not)) | .[] | "\(.gem.name) \(.gem.version) — \(.advisory.cve // .advisory.id)"' /tmp/ba-base.json /tmp/ba-head.json
 ```
 
-### `ignore brakeman <fingerprint> [note]`
+**Why worktree, not stash:** stash is destructive on Ctrl-C/OOM, swallows merge conflicts. Worktree creates isolated checkout in temp dir.
 
-Brakeman ignores via `config/brakeman.ignore`:
-
+### `ignore brakeman <fingerprint> [note]` / `ignore cve <CVE-ID> [note]`
 ```bash
-mkdir -p config
-[ -f config/brakeman.ignore ] || echo '{"ignored_warnings":[]}' > config/brakeman.ignore
-jq --arg fp "$FINGERPRINT" --arg note "${NOTE:-no reason given}" '
-  .ignored_warnings += [{fingerprint: $fp, note: $note}]
-' config/brakeman.ignore > config/brakeman.ignore.tmp \
+# Brakeman:
+mkdir -p config; [ -f config/brakeman.ignore ] || echo '{"ignored_warnings":[]}' > config/brakeman.ignore
+jq --arg fp "$FP" --arg note "${NOTE:-no reason given}" \
+  '.ignored_warnings += [{fingerprint:$fp, note:$note}]' config/brakeman.ignore > config/brakeman.ignore.tmp \
   && mv config/brakeman.ignore.tmp config/brakeman.ignore
-```
 
-### `ignore cve <CVE-ID> [note]`
-
-```bash
+# CVE:
 [ -f .bundler-audit.yml ] || echo "ignore: []" > .bundler-audit.yml
 echo "Edit .bundler-audit.yml to add: $CVE_ID  # ${NOTE:-add reason}"
 ```
 
-ALWAYS require a reason comment alongside an ignore — without it, future
-maintainers can't audit the decision.
+ALWAYS require a reason — without it future maintainers can't audit decisions.
 
-### `update` — refresh bundler-audit advisory DB
-
+### `update` — refresh advisory DB
 ```bash
-bundle-audit update
+bundle-audit update     # hits GitHub; fallback: bundle-audit check --no-update
 ```
-
-DB lives at `~/.local/share/ruby-advisory-db` (or similar per OS). Refresh
-weekly minimum.
-
-## Implementation notes
-
-- Brakeman exit code 0 even with warnings — parse JSON, don't rely on exit.
-- bundler-audit exit code 1 = vulns found. Don't treat as error in shell.
-- `--no-progress` suppresses TTY-only progress noise.
-- `bundle-audit update` hits GitHub — fallback `--no-update` for offline.
-- Advisory `criticality` field is optional in older entries — handle missing
-  with `// "unknown"`.
 
 ## Safety
 
-- **Scan output reveals attack surface** — fingerprints, file paths, gem
-  versions. Don't paste raw scan results into public chats/PRs without
-  redaction.
-- **`brakeman.ignore` and `.bundler-audit.yml` MUST be committed** — they're
-  the audit trail of accepted-risk decisions. Each entry needs a human-readable
-  reason.
-- **Never bypass these scanners in CI** without an approved exception (PR
-  comment + ignore entry with reason). Pre-PR gate via `audit` subcommand.
-
-## Token-saving tip
-
-Use `diff` mode for PR review — only see NEW issues, ignore existing
-backlog. Drastically cuts output noise.
+- Scan output reveals attack surface (file paths, gem versions). Don't paste raw output publicly.
+- `brakeman.ignore` and `.bundler-audit.yml` MUST be committed (audit trail of accepted-risk decisions).
+- Never bypass scanners in CI without an approved exception (PR comment + ignore entry with reason).
+- Use `diff` mode for PR review — only see NEW issues, drastically cuts noise.

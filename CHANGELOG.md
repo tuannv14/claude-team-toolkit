@@ -7,6 +7,42 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-05-05
+
+### Changed
+- **Honest token economics**: previous claims of ~74% token savings were
+  based on a `words × 1.33` estimate that significantly underestimated
+  real tokenization (markdown code blocks, special chars, URLs tokenize
+  much denser than prose). Measured with tiktoken cl100k_base, real
+  numbers are:
+  - Always-loaded: 1,005 tokens (was claimed ~779, actual was 1,266)
+  - Multi-step session (3 × 4): **48% savings** (was claimed 72%)
+  - Heavy reuse (5 × 5): **57% savings** (was claimed 74%)
+  - Break-even: ~3 invocations per skill (was claimed 2)
+- **Token optimization pass**: trimmed 9 skills aggressively to compensate
+  - shopify: 3,719 → 2,233 (-40%)
+  - fastlane: 1,790 → 1,123 (-38%)
+  - firebase: 2,027 → 1,314 (-36%)
+  - postgres: 2,139 → 1,529 (-29%)
+  - rails-security: 2,095 → 1,562 (-26%)
+  - maestro: 1,714 → 1,290 (-25%)
+  - rspec: 1,680 → 1,296 (-23%)
+  - heroku: 2,258 → 1,864 (-18%)
+  - All 15 frontmatter descriptions ultra-trimmed
+- **Total reduction**: -21% always-loaded, -20% all-bodies sum
+- **README Token economics section** rewritten with honest tiktoken numbers,
+  exact methodology, when-it-doesn't-save disclosure
+
+### Added
+- `scripts/benchmark_tokens.py` — reproducible token benchmark using
+  tiktoken. Run anytime with `python3 scripts/benchmark_tokens.py` to
+  validate token claims for your stack.
+
+### Notes
+This release is functionally equivalent to v0.8.1 — same skills, same
+APIs, same security model. Only documentation accuracy and token
+efficiency changed. No breaking changes.
+
 ## [0.8.1] - 2026-05-05
 
 ### Documentation
@@ -133,7 +169,8 @@ No code changes. Pure documentation release.
 - Initial release with trello and azure-devops skills
 - `plugin.json` manifest, README, `.gitignore`, MIT LICENSE
 
-[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.6.3...v0.7.0

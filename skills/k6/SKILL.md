@@ -1,6 +1,6 @@
 ---
 name: k6
-description: k6 load/stress/soak/spike tests. Multi-environment profiles (dev/staging/prod base URLs + auth). Generate scripts (smoke/load/stress/soak/spike), run, analyze p50/p95/p99. Prod profile requires typed RUN confirmation. VU cap protects against accidental DDoS.
+description: k6 load/stress/soak/spike tests. Generate scripts, run, analyze p50/p95/p99. Multi-environment via K6_PROFILE. Prod requires typed RUN confirmation.
 user-invocable: true
 allowed-tools:
   - Read

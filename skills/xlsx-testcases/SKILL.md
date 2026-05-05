@@ -1,6 +1,6 @@
 ---
 name: xlsx-testcases
-description: Convert XLSX test cases → runnable specs (Maestro YAML / Detox / Markdown) + sync to Azure DevOps Test Plans. Use when team has xlsx test cases (tester source of truth) and needs runnable tests, ADO sync, or coverage gap report. Custom column mapping via .testcase-schema.yml.
+description: Convert XLSX test cases to Maestro YAML / Detox / Markdown + sync Azure DevOps Test Plans. Use when team has xlsx test cases needing runnable specs or ADO sync.
 user-invocable: true
 allowed-tools:
   - Read

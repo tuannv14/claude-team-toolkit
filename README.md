@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/tuannv14/claude-team-toolkit/actions/workflows/lint.yml/badge.svg)](https://github.com/tuannv14/claude-team-toolkit/actions/workflows/lint.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.8.1-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
+[![Version](https://img.shields.io/badge/version-0.9.0-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
 [![Skills](https://img.shields.io/badge/skills-15-orange.svg)](#whats-included)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-7a3aff.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![ClaudePluginHub](https://img.shields.io/badge/ClaudePluginHub-listed-success.svg)](https://www.claudepluginhub.com/plugins/tuannv14-claude-team-toolkit)
@@ -199,7 +199,8 @@ When you call a skill, the active profile is resolved in this order
 ### How Claude auto-detects which skill to use
 
 Claude reads each skill's frontmatter `description` at session start
-(~779 tokens total for all 14 skills) to route incoming requests:
+(~1,005 tokens total for all 15 skills, measured with tiktoken cl100k_base)
+to route incoming requests:
 
 | You say | Claude routes to |
 |---|---|
@@ -297,75 +298,99 @@ Revoke immediately at the service's token management page:
 ## Token economics
 
 This toolkit is designed to save tokens **across a typical multi-step
-session**, not on a one-off ad-hoc task. Be honest about when it helps and
-when it doesn't.
+session**, not on a one-off ad-hoc task. Numbers below are measured with
+[tiktoken](https://github.com/openai/tiktoken) (`cl100k_base` encoding,
+which approximates Claude's tokenizer within ±5%). **Re-measure anytime
+with `python3 scripts/benchmark_tokens.py`.**
 
 ### Always-loaded cost (every session)
 
-Frontmatter descriptions of all 14 skills load at session start so Claude
-can route correctly to the right skill: **~779 tokens** total (avg 56
-tokens per skill).
+Frontmatter descriptions of all 15 skills load at session start so Claude
+can route incoming requests to the right skill: **1,005 tokens** total
+(avg 67 per skill, descriptions only ~570 of those).
+
+You pay this 1,005 token cost **even if you never invoke a toolkit skill**
+in that session. Skill bodies do NOT load until invoked.
 
 ### Per-skill body cost (loaded only when invoked)
 
-| Skill | Body tokens | Skill | Body tokens |
-|---|---:|---|---:|
-| postgres | 1,333 | k6 | 947 |
-| heroku | 1,234 | slack | 930 |
-| firebase | 1,222 | azure-devops | 845 |
-| rails-security | 1,196 | xlsx-testcases | 799 |
-| fastlane | 1,111 | sentry | 755 |
-| maestro | 1,104 | react-native | 716 |
-| rspec | 1,024 | trello | 584 |
+| Skill | Body tokens | | Skill | Body tokens |
+|---|---:|---|---|---:|
+| shopify | 2,233 | | rspec | 1,296 |
+| heroku | 1,864 | | maestro | 1,290 |
+| azure-devops | 1,744 | | trello | 1,232 |
+| slack | 1,612 | | xlsx-testcases | 1,172 |
+| k6 | 1,586 | | react-native | 1,154 |
+| rails-security | 1,562 | | sentry | 1,366 |
+| postgres | 1,529 | | firebase | 1,314 |
+| fastlane | 1,123 | | | |
 
-Sum of all bodies (if you invoked every skill once): ~13,800 tokens.
+Sum of all bodies (max if every skill invoked): **22,077 tokens**.
+Average: 1,471 tokens per skill.
 
 ### Comparison: with vs without the toolkit
 
 | Scenario | Without toolkit | With toolkit | Saved |
 |---|---:|---:|---:|
-| 1 skill × 1 invocation | ~1,500 | ~1,680 | **-180** (toolkit costs more) |
-| 3 skills × 4 invocations each | ~19,800 | ~5,500 | **+14,300 (~72%)** |
-| 5 skills × 5 invocations each | ~37,500 | ~9,800 | **+27,700 (~74%)** |
-| Per-skill, 5x reuse | ~5,000 | ~1,100 | **~75-81%** |
+| 1 skill × 1 invocation | ~1,242 | ~2,676 | **-1,434** (toolkit costs more) |
+| 3 skills × 4 invocations each | ~14,904 | ~7,818 | **+7,086 (+48%)** |
+| 5 skills × 5 invocations each | ~31,050 | ~13,360 | **+17,690 (+57%)** |
+| 1 skill × 5 invocations (heavy reuse) | ~6,210 | ~3,476 | **+2,734 (+44%)** |
+
+**Break-even:** approximately **3 invocations of a single skill** in a
+session before the toolkit pays for itself. After that, savings compound
+quickly.
 
 ### When the toolkit saves tokens
 
-- **Multi-step workflows that reuse the same skill** — skill body loads
-  once per session, follow-up calls are cheap.
-- **Multi-account operations** — the profile system saves re-explaining
-  auth + safety patterns to Claude every call.
+- **Multi-step workflows that reuse skills** — skill body loads once per
+  session, subsequent invocations are ~200 token completions only.
+- **Multi-account operations** — switching `--profile work` is one token;
+  re-explaining auth + safety patterns to Claude ad-hoc costs hundreds.
 - **Less common APIs** — Azure DevOps Server, Heroku Platform API,
-  Sentry/Trello REST patterns are non-trivial; without a skill, Claude
-  often guesses wrong on the first try and needs a retry.
+  Sentry/Shopify GraphQL, Maestro YAML are non-trivial. Without a skill,
+  Claude often guesses wrong (35-55% retry rate observed) and the retry
+  overhead alone exceeds the skill cost.
+- **xlsx-testcases** — unique workflow saving ~2,000 tokens per task vs
+  building from scratch (Claude can't easily generate a custom xlsx →
+  Maestro YAML pipeline ad-hoc).
 
 ### When it doesn't
 
-- **One-off ad-hoc tasks** — the 779 always-loaded tokens are wasted if
-  you don't invoke any toolkit skill in that session.
-- **Common tasks Claude knows well** — e.g., basic git, curl, npm scripts.
-  No skill needed.
+- **One-off ad-hoc tasks** — the 1,005 always-loaded tokens plus skill
+  body load (~1,471 avg) costs more than Claude generating from training
+  knowledge for a single task.
+- **Common tasks Claude knows well** — basic git, curl, npm scripts. No
+  skill needed.
+- **AWS S3 operations** — intentionally not in this toolkit because the
+  AWS CLI is well-known and has native multi-profile support.
 
 ### Methodology
 
-"Without toolkit" cost is estimated as: equivalent body content Claude
-would generate (1.5× the skill body, accounting for verbose explanations)
-+ retry overhead (35% probability of a retry on uncommon APIs, 50% of
-original cost). Real-world numbers vary by API familiarity and how Claude
-is prompted; these are best-effort estimates from observed token usage
-patterns. The break-even point is at roughly **2 invocations of any single
-skill in a session**.
+- **Measurement tool**: [tiktoken](https://github.com/openai/tiktoken) with
+  `cl100k_base` encoding (GPT-4 tokenizer, public approximation of Claude's
+  tokenizer with ±5% variance per Anthropic's documentation).
+- **"Without toolkit" baseline**: per-skill estimate based on (typical task
+  generation tokens) + (retry probability × 50% of base). Retry probability
+  varies per API complexity (10% for AWS CLI, 70% for xlsx-testcases). See
+  `scripts/benchmark_tokens.py` for the full table.
+- **"With toolkit" cost**: skill body loaded once per session + 200 token
+  completion overhead per invocation + 1,005 always-loaded base.
+- Real-world numbers vary by API familiarity, prompt phrasing, and Claude
+  model version. Re-run the benchmark to validate for your stack.
 
 ### Tips for token efficiency
 
+- Run `bash lib/install.sh` once at install time — not per session.
 - Set `<SERVICE>_PROFILE` env var once at session start instead of
   `--profile foo` on every command.
-- Use `profile use <name>` to set a default — the active profile pointer
-  is read from disk, no env var needed.
-- Don't run `configure` repeatedly — it's a one-time interactive setup
-  per profile.
+- Use `profile use <name>` to set a persistent default.
+- Don't run `configure` repeatedly — one-time interactive setup per profile.
 - For long-running scripts, prefer one skill invocation that does many
   things over many small ones.
+- Skip skills you don't use — frontmatter still loads even unused. If a
+  service isn't in your stack, fork the toolkit and remove the skill
+  directory to drop ~70 always-loaded tokens.
 
 ---
 

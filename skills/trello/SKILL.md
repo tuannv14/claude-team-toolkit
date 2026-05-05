@@ -1,6 +1,6 @@
 ---
 name: trello
-description: Trello cards/boards/lists via REST API, multi-account. Use when user mentions Trello, a trello.com/c/ URL, or asks to fetch/create/move/comment/archive cards or list boards. Switch accounts with --profile, TRELLO_PROFILE env, or /trello profile use.
+description: Trello cards/boards/lists via REST API. Use when user mentions Trello or pastes a trello.com/c/ URL. Multi-account via TRELLO_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read

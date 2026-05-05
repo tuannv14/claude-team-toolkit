@@ -1,6 +1,6 @@
 ---
 name: sentry
-description: Sentry issues/events/releases via API, multi-org. Use to fetch errors, list issues, resolve/assign, look up release health, correlate to deploys. Works with sentry.io and self-hosted. Switch via --profile or SENTRY_PROFILE.
+description: Sentry issues/events/releases via API. Use to fetch errors, resolve/assign issues, release health. SaaS + self-hosted. Multi-org via SENTRY_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read

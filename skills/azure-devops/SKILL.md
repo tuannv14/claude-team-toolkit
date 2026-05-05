@@ -1,6 +1,6 @@
 ---
 name: azure-devops
-description: Azure DevOps repos/PRs/work items/pipelines via REST API. Supports cloud (dev.azure.com) and self-hosted Server. Use for PR list/create/comment, WIQL queries, pipeline runs. Multi-org via --profile, AZDO_PROFILE, or AZURE_DEVOPS_PROFILE.
+description: Azure DevOps repos/PRs/work items/pipelines via REST. Cloud + self-hosted Server. Use for PR list/create/comment, WIQL queries, pipeline runs. Multi-org via AZDO_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read

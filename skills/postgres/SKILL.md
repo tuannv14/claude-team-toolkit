@@ -1,33 +1,18 @@
 ---
 name: postgres
-description: PostgreSQL read-only queries, EXPLAIN, schema/indexes/locks, slow queries. Multi-database. Refuses mutating SQL without --write + typed confirmation. Profile-level read_only flag for prod safety. Switch via --profile or PG_PROFILE.
+description: PostgreSQL read-only queries, EXPLAIN, schema/indexes/locks, slow queries. Refuses mutating SQL without --write + typed confirmation. Multi-database via PG_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read
+  - Write
   - Bash
 ---
 
 # /postgres — read-mostly DB ops (multi-database)
 
-Wrapper around `psql` with a SAFETY-FIRST default: read-only queries unless
-the user explicitly opts into writes. Profiles isolate database connections.
+Wraps `psql`. Read-only by default; mutating SQL requires `--write` + typed confirm.
 
-Arguments: `$ARGUMENTS`. Profile resolution: `--profile <name>` → `PG_PROFILE` env → `~/.postgres/active_profile` → `[default]`.
-
-## Dependencies
-
-`psql` (PostgreSQL client):
-
-```bash
-# Windows
-choco install postgresql --params '/Password:postgres'   # or just installer
-# macOS
-brew install libpq && brew link --force libpq
-# Linux
-sudo apt install postgresql-client
-```
-
-Verify: `psql --version`.
+Profile resolution: `--profile` → `PG_PROFILE` → `~/.postgres/active_profile` → `[default]`.
 
 ## Profile config
 
@@ -35,50 +20,26 @@ Verify: `psql --version`.
 
 ```ini
 [default]
-host     = localhost
-port     = 5432
+host = localhost
+port = 5432
 database = myapp_development
-user     = postgres
+user = postgres
 password = postgres
-sslmode  = prefer
-
-[staging]
-host     = staging-db.example.com
-port     = 5432
-database = myapp_production
-user     = readonly_user
-password = xxxxxxxxxxxxxxxx
-sslmode  = require
-# Mark this as production-ish — refuse writes even with --write flag
-read_only = true
+sslmode = prefer
 
 [prod]
-host     = prod-db.example.com
-port     = 5432
+host = prod-db.example.com
 database = myapp_production
-user     = readonly_user
-password = xxxxxxxxxxxxxxxx
-sslmode  = require
-read_only = true
+user = readonly_user        # defense-in-depth: physical RO at DB level
+password = xxxxxxxxxxxxxx
+sslmode = verify-full       # min `require` for non-localhost
+read_only = true            # hard refuse writes even with --write
 require_confirm = true
 ```
 
-**SSL modes:**
+**SSL modes:** `disable` (local only), `prefer`, `require` (min for remote), `verify-ca`, `verify-full` (strongest).
 
-| Mode | When |
-|---|---|
-| `disable` | local dev only |
-| `prefer` | local; falls back if server doesn't support SSL |
-| `require` | minimum for any non-localhost — **use this for staging/prod** |
-| `verify-ca` | + verify cert is signed by trusted CA |
-| `verify-full` | + verify hostname matches cert (strongest) |
-
-**Why a separate readonly_user**: the skill defaults to read-only mode, but
-defense-in-depth says use a database user that physically cannot write to
-prod. Create one with: `CREATE ROLE readonly_user WITH LOGIN PASSWORD '...';
-GRANT CONNECT ON DATABASE myapp_production TO readonly_user; GRANT USAGE ON
-SCHEMA public TO readonly_user; GRANT SELECT ON ALL TABLES IN SCHEMA public
-TO readonly_user;`.
+**Why readonly_user**: defense-in-depth. Skill is read-only by default but DB-level grants prevent accidents even if skill is bypassed.
 
 ## Helpers
 
@@ -87,179 +48,118 @@ source "$HOME/.claude-team-toolkit/lib/credentials.sh"
 source "$HOME/.claude-team-toolkit/lib/confirm.sh"
 ctt_load_creds postgres "$PROFILE"
 
-# Build connection string (password via PGPASSWORD env, never on command line)
 pg_run() {
   PGPASSWORD="$CTT_PASSWORD" psql \
-    --host "$CTT_HOST" \
-    --port "${CTT_PORT:-5432}" \
-    --dbname "$CTT_DATABASE" \
-    --username "$CTT_USER" \
-    --set "sslmode=${CTT_SSLMODE:-prefer}" \
-    --no-password \
-    "$@"
+    --host "$CTT_HOST" --port "${CTT_PORT:-5432}" \
+    --dbname "$CTT_DATABASE" --username "$CTT_USER" \
+    --set "sslmode=${CTT_SSLMODE:-prefer}" --no-password "$@"
 }
 
-# Detect mutating SQL — refuse unless --write
 is_mutating_sql() {
-  local q
-  q=$(echo "$1" | tr '[:upper:]' '[:lower:]' | tr -s '[:space:]' ' ')
-  echo "$q" | grep -qE '\b(insert|update|delete|drop|truncate|alter|grant|revoke|create|copy|vacuum|reindex)\b'
+  echo "$1" | tr '[:upper:]' '[:lower:]' | tr -s '[:space:]' ' ' \
+    | grep -qE '\b(insert|update|delete|drop|truncate|alter|grant|revoke|create|copy|vacuum|reindex)\b'
+}
+
+# Identifier validation: prevent SQL injection in unquoted contexts
+valid_ident() {
+  case "$1" in ''|*[!a-zA-Z0-9_]*) return 1 ;; *) return 0 ;; esac
 }
 ```
 
 ## Dispatch
 
-### `query <sql>` — execute query (READ-ONLY by default)
-
+### `query <sql>` — execute (read-only by default)
 ```bash
-SQL="$1"
-WRITE="${WRITE:-false}"
+SQL="$1"; WRITE="${WRITE:-false}"
 
 if is_mutating_sql "$SQL"; then
-  if [ "$WRITE" != "true" ]; then
-    echo "Mutating SQL detected. Re-run with --write flag to proceed." >&2
-    return 1
-  fi
-  if [ "$CTT_READ_ONLY" = "true" ]; then
-    echo "Profile $CTT_PROFILE is marked read_only. Refusing." >&2
-    return 1
-  fi
+  [ "$WRITE" != "true" ] && { echo "Mutating SQL detected. Re-run with --write." >&2; return 1; }
+  [ "$CTT_READ_ONLY" = "true" ] && { echo "Profile $CTT_PROFILE is read_only. Refusing." >&2; return 1; }
   ctt_warn_destructive "Mutating SQL on $CTT_DATABASE@$CTT_HOST ($CTT_PROFILE)"
-  ctt_confirm "Run mutating SQL? Type the database name '$CTT_DATABASE' to confirm:" "$CTT_DATABASE" || return 1
+  ctt_confirm "Type the database name '$CTT_DATABASE' to confirm:" "$CTT_DATABASE" || return 1
 fi
 
 pg_run -c "$SQL"
 [ "$WRITE" = "true" ] && ctt_audit_log postgres "MUTATE: ${SQL:0:100}"
 ```
 
-### `explain <sql>` — query plan (always read-only)
-
+### `explain <sql>` — query plan
 ```bash
 pg_run -c "EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) $SQL"
 ```
+Drop `ANALYZE` to see plan without running query.
 
-For just the plan without running: drop `ANALYZE`.
-
-### `schema <table>` — describe a table
-
-Validate identifier first to prevent SQL injection:
-
+### `schema <table>` — describe a table (validate identifier)
 ```bash
-# Identifier validation: letters, digits, underscore only (PostgreSQL identifier rules)
-case "$TABLE" in
-  ''|*[!a-zA-Z0-9_]*) echo "Invalid table name: $TABLE" >&2; return 1 ;;
-esac
+valid_ident "$TABLE" || { echo "Invalid table name: $TABLE" >&2; return 1; }
 pg_run -v t="$TABLE" -c "\d+ :\"t\""
 ```
 
-### `tables [--schema <name>]` — list tables with sizes
-
+### `tables [--schema name]` — list tables with sizes
 ```bash
 SCHEMA="${SCHEMA:-public}"
-case "$SCHEMA" in
-  ''|*[!a-zA-Z0-9_]*) echo "Invalid schema name: $SCHEMA" >&2; return 1 ;;
-esac
+valid_ident "$SCHEMA" || { echo "Invalid schema: $SCHEMA" >&2; return 1; }
 
-# Use psql variable + quote_ident() inside SQL — never string-interpolate identifiers
 pg_run -v schema="$SCHEMA" -c "
-SELECT
-  c.relname AS table,
+SELECT c.relname AS table,
   pg_size_pretty(pg_total_relation_size(c.oid)) AS size,
-  pg_stat_get_tuples_inserted(c.oid) + pg_stat_get_tuples_updated(c.oid) AS writes,
   c.reltuples::bigint AS approx_rows
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE c.relkind = 'r' AND n.nspname = :'schema'
-ORDER BY pg_total_relation_size(c.oid) DESC
-LIMIT 50;
-"
+ORDER BY pg_total_relation_size(c.oid) DESC LIMIT 50;"
 ```
 
-### `indexes <table>` — list indexes (with usage stats)
-
+### `indexes <table>` — list indexes + usage stats
 ```bash
-case "$TABLE" in
-  ''|*[!a-zA-Z0-9_]*) echo "Invalid table name: $TABLE" >&2; return 1 ;;
-esac
+valid_ident "$TABLE" || return 1
 pg_run -v t="$TABLE" -c "
-SELECT
-  i.relname AS index,
+SELECT i.relname AS index,
   pg_size_pretty(pg_relation_size(i.oid)) AS size,
-  s.idx_scan AS scans,
-  s.idx_tup_read AS reads
+  s.idx_scan AS scans, s.idx_tup_read AS reads
 FROM pg_class i
 JOIN pg_index ix ON i.oid = ix.indexrelid
 JOIN pg_class t ON t.oid = ix.indrelid
 LEFT JOIN pg_stat_user_indexes s ON s.indexrelid = i.oid
-WHERE t.relname = :'t'
-ORDER BY i.relname;
-"
+WHERE t.relname = :'t' ORDER BY i.relname;"
 ```
+`scans=0` after weeks = removal candidate.
 
-Indexes with `scans = 0` after weeks of traffic are candidates for removal.
-
-### `locks` — current locks (debugging hangs)
-
+### `locks` — current locks (debug hangs)
 ```bash
 pg_run -c "
-SELECT
-  pid, usename, state, wait_event_type, wait_event,
-  query_start, now() - query_start AS duration,
-  left(query, 80) AS query
+SELECT pid, usename, state, wait_event_type, wait_event,
+  query_start, now() - query_start AS duration, left(query, 80) AS query
 FROM pg_stat_activity
 WHERE state != 'idle' AND pid != pg_backend_pid()
-ORDER BY query_start;
-"
+ORDER BY query_start;"
 ```
 
-### `kill <pid>` — terminate a backend (requires --force)
-
+### `kill <pid>` — terminate backend (require --force)
 ```bash
 [ "$FORCE" != "true" ] && { echo "Add --force flag" >&2; return 1; }
-case "$PID" in
-  ''|*[!0-9]*) echo "PID must be a positive integer" >&2; return 1 ;;
-esac
-ctt_confirm "Terminate Postgres backend pid $PID on $CTT_PROFILE?" "KILL" || return 1
+case "$PID" in ''|*[!0-9]*) echo "PID must be numeric" >&2; return 1 ;; esac
+ctt_confirm "Type KILL to confirm:" "KILL" || return 1
 pg_run -v pid="$PID" -c "SELECT pg_terminate_backend(:'pid'::int);"
 ctt_audit_log postgres "killed pid $PID"
 ```
 
 ### `slow [--limit N]` — slowest queries (requires pg_stat_statements)
-
 ```bash
 pg_run -c "
-SELECT
-  round(mean_exec_time::numeric, 2) AS avg_ms,
-  calls,
-  round((total_exec_time / 1000)::numeric, 1) AS total_sec,
+SELECT round(mean_exec_time::numeric, 2) AS avg_ms,
+  calls, round((total_exec_time/1000)::numeric, 1) AS total_sec,
   left(query, 100) AS query
 FROM pg_stat_statements
-ORDER BY mean_exec_time DESC
-LIMIT ${LIMIT:-20};
-"
+ORDER BY mean_exec_time DESC LIMIT ${LIMIT:-20};"
 ```
-
-If `pg_stat_statements` extension isn't installed, surface that to the user.
 
 ## Safety
 
-- **Read-only by default**: any mutating SQL keyword (INSERT/UPDATE/DELETE/
-  DROP/TRUNCATE/ALTER/GRANT/REVOKE/CREATE/COPY/VACUUM/REINDEX) requires the
-  `--write` flag explicitly.
-- **`read_only = true`** profile flag: refuses writes even with `--write`.
-  Set this on staging/prod profiles for defense-in-depth.
-- **Use a readonly DB user** for staging/prod. Skill flags don't replace
-  database-level permissions.
-- **`PGPASSWORD` env**, not `-W` or password-in-URL — process listing
-  shouldn't expose the password.
-- **`sslmode=require` minimum** for non-localhost. The skill warns if a
-  remote host is configured with `disable` or `prefer`.
-- **EXPLAIN ANALYZE runs the query** — for slow/expensive reads, use plain
-  `EXPLAIN` (no ANALYZE) first to see if it'll scan a billion rows.
-- Audit log records mutating SQL but **truncates to 100 chars** to avoid
-  logging full payloads with potentially sensitive data.
-
-## Token-saving tip
-
-Profile-level `read_only = true` makes the skill mathematically safer for
-prod profiles. Combine with database-side readonly user — defense in depth.
+- **Read-only by default**: mutating keywords need `--write` flag explicitly.
+- **`read_only=true` profile flag**: hard refuse even with `--write`.
+- **Use a readonly DB user** for staging/prod (defense-in-depth).
+- **`PGPASSWORD` env**, not command line — process listing won't show password.
+- **`sslmode=require` minimum** for non-localhost.
+- **EXPLAIN ANALYZE runs the query** — use plain `EXPLAIN` first for expensive scans.
+- Audit log truncates SQL to 100 chars to avoid logging sensitive payloads.
