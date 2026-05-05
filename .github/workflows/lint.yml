@@ -17,6 +17,53 @@ jobs:
           jq empty .claude-plugin/plugin.json
           test "$(jq -r .name .claude-plugin/plugin.json)" = "claude-team-toolkit"
 
+      - name: Schema check — plugin.json author/repository shapes
+        run: |
+          # author must be object, repository must be string (per Claude's official schema)
+          test "$(jq -r '.author | type' .claude-plugin/plugin.json)" = "object" \
+            || { echo "FAIL: author must be an object {name, email, url}"; exit 1; }
+          test "$(jq -r '.repository | type' .claude-plugin/plugin.json)" = "string" \
+            || { echo "FAIL: repository must be a string URL, not an object"; exit 1; }
+          echo "Schema OK: author is object, repository is string"
+
+      - name: YAML frontmatter parse check (each SKILL.md)
+        run: |
+          # Use python yaml to actually parse — catches issues that grep misses
+          # (e.g., unquoted colon-space in description field)
+          python3 -c "
+          import yaml, glob, sys
+          fail = 0
+          for f in sorted(glob.glob('skills/*/SKILL.md')):
+            try:
+              with open(f, 'r', encoding='utf-8') as fp:
+                content = fp.read()
+              parts = content.split('---', 2)
+              if len(parts) < 3:
+                print(f'FAIL: {f} missing --- delimiters')
+                fail += 1
+                continue
+              try:
+                data = yaml.safe_load(parts[1])
+              except yaml.YAMLError as e:
+                print(f'FAIL: {f} YAML parse error: {e}')
+                fail += 1
+                continue
+              if not isinstance(data, dict):
+                print(f'FAIL: {f} frontmatter is not a dict (got {type(data).__name__})')
+                fail += 1
+                continue
+              for required in ['name', 'description']:
+                if required not in data or not data[required]:
+                  print(f'FAIL: {f} missing or empty {required}')
+                  fail += 1
+            except Exception as e:
+              print(f'FAIL: {f} unexpected: {e}')
+              fail += 1
+          if fail == 0:
+            print('All SKILL.md frontmatters parse correctly as YAML')
+          sys.exit(fail)
+          "
+
       - name: Validate every SKILL.md frontmatter
         run: |
           for f in skills/*/SKILL.md; do

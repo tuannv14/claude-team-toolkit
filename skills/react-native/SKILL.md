@@ -1,6 +1,6 @@
 ---
 name: react-native
-description: React Native dev ops: clean caches, pod install, bundle analyze, device logs, version bump, icons/splash, patch-package. No credentials.
+description: "React Native dev ops — clean caches, pod install, bundle analyze, device logs, version bump, icons/splash, patch-package. No credentials."
 user-invocable: true
 allowed-tools:
   - Read

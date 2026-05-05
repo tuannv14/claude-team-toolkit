@@ -7,6 +7,39 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-05-05
+
+### Fixed (CRITICAL)
+- `plugin.json` schema: `author` field changed from string to object
+  (`{name, email, url}`) — required by Claude's official `plugin validate`.
+  String form was silently accepted by older Claude Code versions but
+  newer versions reject the install.
+- `plugin.json` schema: `repository` field changed from object
+  (`{type, url}`) to plain URL string — same reason.
+- `skills/fastlane/SKILL.md` frontmatter: description field had unquoted
+  colon-space (`Fastlane lanes for iOS/Android release: TestFlight...`)
+  which YAML parsers interpret as a key-value separator. Wrapped in
+  double quotes. Without this fix, fastlane skill loaded with empty
+  metadata and Claude couldn't route to it.
+- `skills/react-native/SKILL.md` frontmatter: same issue. Wrapped in
+  double quotes.
+
+### Why this matters
+Discovered during local install verification with `claude plugin validate`.
+CI's lint.yml only ran a coarse frontmatter check (presence of `name:`
+and `description:` lines), missing the structural YAML errors. This
+release passes the official validator without errors or warnings.
+
+### Verification
+```bash
+claude plugin validate /path/to/cloned/repo
+# → ✔ Validation passed
+```
+
+Users who installed v0.8.x or v0.9.x where these bugs were latent should
+update to v0.9.2 — fastlane and react-native skills will now route
+correctly.
+
 ## [0.9.1] - 2026-05-05
 
 ### Changed
@@ -211,7 +244,8 @@ No code changes. Pure documentation release.
 - Initial release with trello and azure-devops skills
 - `plugin.json` manifest, README, `.gitignore`, MIT LICENSE
 
-[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.8.0...v0.8.1

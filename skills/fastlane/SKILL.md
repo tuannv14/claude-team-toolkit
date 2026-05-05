@@ -1,6 +1,6 @@
 ---
 name: fastlane
-description: Fastlane lanes for iOS/Android release: TestFlight, App Store, Play Console, match code signing. Multi-app via FASTLANE_PROFILE.
+description: "Fastlane lanes for iOS/Android release — TestFlight, App Store, Play Console, match code signing. Multi-app via FASTLANE_PROFILE."
 user-invocable: true
 allowed-tools:
   - Read
