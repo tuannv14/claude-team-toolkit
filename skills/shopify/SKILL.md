@@ -1,6 +1,6 @@
 ---
 name: shopify
-description: Use when querying or mutating Shopify products, orders, customers, inventory, or draft orders via the Admin GraphQL API. Multi-store and multi-app via SHOPIFY_PROFILE; API 2026-04 default.
+description: "Use when user references Shopify, *.myshopify.com URLs, admin.shopify.com links, or asks to query/mutate products/orders/customers/inventory/draft-orders via Admin GraphQL. Multi-store and multi-app via SHOPIFY_PROFILE."
 user-invocable: true
 allowed-tools:
   - Read

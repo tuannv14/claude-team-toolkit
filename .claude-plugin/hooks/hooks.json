@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/lib/session-start.sh\""
+          }
+        ],
+        "description": "Pre-warm credential discovery: list which claude-team-toolkit profiles are configured (trello, azure-devops, heroku, sentry, slack, firebase, shopify, postgres, maestro, fastlane, k6, rspec) and the active default per service. Output is advisory only — never blocks."
+      }
+    ]
+  }
+}

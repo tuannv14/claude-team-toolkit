@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/tuannv14/claude-team-toolkit/actions/workflows/lint.yml/badge.svg)](https://github.com/tuannv14/claude-team-toolkit/actions/workflows/lint.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.9.3-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
+[![Version](https://img.shields.io/badge/version-0.11.0-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
 [![Skills](https://img.shields.io/badge/skills-15-orange.svg)](#whats-included)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-7a3aff.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![ClaudePluginHub](https://img.shields.io/badge/ClaudePluginHub-listed-success.svg)](https://www.claudepluginhub.com/plugins/tuannv14-claude-team-toolkit)
@@ -431,6 +431,28 @@ All scripts use the public `tiktoken` library. No API key needed.
 - **Fork and remove unused skills** — each skill folder you delete drops
   ~70 always-loaded tokens. If you only need 5 skills, this halves the
   base cost.
+
+---
+
+## Why curl + jq, not MCP?
+
+Each MCP server's tool schemas cost roughly **~500 tokens per tool** loaded into
+every Task tool invocation. A single 10-tool MCP server eats more context than
+this entire toolkit's always-loaded skill descriptions combined (~1,100 tokens
+for all 16 skills).
+
+**claude-team-toolkit ships zero MCP dependencies** — pure bash plumbing
+(curl + jq + lib/credentials.sh). You pay only:
+
+- The frontmatter description (1 line per skill, ~25 tokens) — always loaded
+- The skill body (~700–1,500 tokens) — loaded **only** when that skill is invoked
+- Reference files (e.g., `shopify/commands.md`) — loaded **only** when the SKILL.md tells the model to load them
+
+No MCP server schemas. No node_modules. No daemon. No "10-MCP cap" to worry about.
+
+If you do need MCP-backed integrations (e.g., GitHub via the official MCP server),
+mix and match — claude-team-toolkit doesn't fight your MCP setup, it just doesn't
+add to it.
 
 ---
 

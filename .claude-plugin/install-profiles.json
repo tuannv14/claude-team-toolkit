@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1",
+  "description": "Curated subsets of skills for common team roles. Install with: bash lib/install.sh --profile <name>. Use 'full' (default) to install all skills. Each profile keeps profiles-and-credentials (shared reference) automatically.",
+  "shared": ["profiles-and-credentials"],
+  "profiles": {
+    "full": {
+      "description": "All 15 service-integration skills + shared reference. Default if --profile is omitted.",
+      "skills": ["*"]
+    },
+    "mobile-team": {
+      "description": "Mobile dev/QA: React Native, native iOS/Android release, Maestro E2E, Firebase, xlsx test cases, Slack alerts.",
+      "skills": ["maestro", "fastlane", "firebase", "react-native", "xlsx-testcases", "slack"]
+    },
+    "backend-ops": {
+      "description": "Backend dev/SRE: Heroku ops, Postgres queries, Sentry triage, Slack alerts, Shopify (e-commerce backends).",
+      "skills": ["heroku", "postgres", "sentry", "slack", "shopify"]
+    },
+    "qa-team": {
+      "description": "QA/QC engineers: RSpec, k6 load testing, Maestro mobile E2E, xlsx test cases, Rails security audit.",
+      "skills": ["rspec", "k6", "maestro", "xlsx-testcases", "rails-security"]
+    },
+    "pm": {
+      "description": "Project managers / team leads: Trello cards, Slack updates, Azure DevOps work items + PRs.",
+      "skills": ["trello", "slack", "azure-devops"]
+    },
+    "ruby-dev": {
+      "description": "Ruby/Rails developers: RSpec, Rails security, Postgres, Heroku deploy, Sentry monitoring.",
+      "skills": ["rspec", "rails-security", "postgres", "heroku", "sentry"]
+    },
+    "devops": {
+      "description": "DevOps/SRE: Heroku, Sentry, Slack, k6 perf testing, Firebase, Azure DevOps pipelines.",
+      "skills": ["heroku", "sentry", "slack", "k6", "firebase", "azure-devops"]
+    },
+    "ecommerce": {
+      "description": "Shopify-focused: Shopify Admin, Postgres analytics, Sentry, Slack, Heroku.",
+      "skills": ["shopify", "postgres", "sentry", "slack", "heroku"]
+    }
+  }
+}

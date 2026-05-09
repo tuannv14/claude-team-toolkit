@@ -15,7 +15,7 @@
       "name": "claude-team-toolkit",
       "source": "./",
       "description": "15 skills: Trello, Azure DevOps (cloud + Server), Heroku, Sentry, Slack, Firebase, Shopify, Postgres, Maestro, Fastlane, RSpec, Rails-security, k6, React Native, xlsx-testcases. Multi-account INI profiles, audit log, security-first defaults.",
-      "version": "0.9.2",
+      "version": "0.11.0",
       "author": {
         "name": "Nick Nguyen",
         "email": "96.tuan.nv@gmail.com",

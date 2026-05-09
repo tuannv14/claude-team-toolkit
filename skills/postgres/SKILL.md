@@ -1,6 +1,6 @@
 ---
 name: postgres
-description: Use when querying PostgreSQL — ad-hoc SELECT, EXPLAIN plans, schema/index/lock inspection, or slow-query investigation. Read-only by default; mutations require --write + typed confirmation. Multi-database via PG_PROFILE.
+description: "Use when user references PostgreSQL/Postgres, postgres:// or postgresql:// connection strings, asks for ad-hoc SELECT, EXPLAIN/ANALYZE plans, schema/index/lock inspection, or slow-query investigation. Read-only by default. Multi-database via PG_PROFILE."
 user-invocable: true
 allowed-tools:
   - Read

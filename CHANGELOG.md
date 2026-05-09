@@ -7,6 +7,86 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-05-09
+
+### Added — Token efficiency & UX (informed by an audit against everything-claude-code patterns)
+
+- **Install profiles** (`.claude-plugin/install-profiles.json`) — opt into a
+  curated subset of skills (`mobile-team`, `backend-ops`, `qa-team`, `pm`,
+  `ruby-dev`, `devops`, `ecommerce`, or `full`). A team that only needs
+  three skills cuts always-loaded frontmatter cost by ~80%.
+  - `bash lib/install.sh --list-profiles` — print the catalog
+  - `bash lib/install.sh --profile <name>` — disable skills not in the profile
+    (renames `SKILL.md` → `SKILL.md.disabled` so the loader skips them)
+  - `bash lib/install.sh --reset-profile` — re-enable everything
+- **SessionStart hook** (`.claude-plugin/hooks/hooks.json` +
+  `lib/session-start.sh`) — pre-warms credential discovery on every session.
+  Lists which services have a credentials file, which profiles are defined,
+  and which is currently active. Advisory only (never blocks). Saves the
+  model from probing per-skill.
+- **Reference-file pattern (`recipes.md`) for the 5 heaviest skills**:
+  heroku, slack, k6, azure-devops, firebase. SKILL.md keeps Overview /
+  When-to-Use / Common-Mistakes / verb catalog only; full curl + jq
+  implementations move to `recipes.md` and load only when the user invokes
+  a specific dispatch verb.
+- **README "Why curl + jq, not MCP?" section** — explicit positioning that
+  this toolkit ships zero MCP servers, so it adds zero per-tool schema cost
+  to your context window.
+
+### Changed — Skill description URL hints (improved auto-routing accuracy)
+
+Six descriptions now include explicit URL / host patterns so Claude routes
+correctly when users paste links:
+
+- `heroku`: + `*.herokuapp.com`, `dashboard.heroku.com`
+- `sentry`: + `sentry.io`, `*.sentry.io/issues/`, "pastes a stack trace"
+- `shopify`: + `*.myshopify.com`, `admin.shopify.com`
+- `slack`: + `*.slack.com/archives/`, `#channel` mentions
+- `firebase`: + `console.firebase.google.com`, `*.firebaseapp.com`, `*.web.app`
+- `postgres`: + `postgres://` and `postgresql://` connection strings
+
+trello and azure-devops already had URL hints from v0.10.0.
+
+### Token cost (measured)
+
+- Always-loaded base (16 frontmatters) is unchanged at ~1,102 tokens — the
+  description rewrite kept length similar, just shifted content from
+  features to triggers.
+- 5 heaviest skills' SKILL.md bodies dropped 40–55%:
+  - `heroku`: 937 → 487 words (-48%)
+  - `slack`: 942 → 558 words (-41%)
+  - `k6`: 962 → 565 words (-41%)
+  - `azure-devops`: 873 → 510 words (-42%)
+  - `firebase`: 791 → 620 words (-22%)
+- Total bodies across 16 skills: 12,944 → ~10,500 words (~-19%) before
+  loading any `recipes.md`. Recipes load on-demand only.
+
+### Fixed (during pre-release testing of this version)
+
+- `lib/install.sh --profile <name>` filtering broke on Windows (Git-Bash):
+  jq emits CRLF line endings, and `tr '\n' ' '` left embedded `\r`
+  characters that prevented the grep match for all but the last skill in a
+  profile. Fix: pipe through `tr -d '\r'` before `tr '\n' ' '`. Verified
+  with all 8 profiles end-to-end on Windows + macOS-style line endings.
+- `lib/install.sh --profile=` (empty value) and `--profile` (no value at
+  end of args) now error explicitly with exit code 2 instead of silently
+  falling through to a full install. Helpful message points to
+  `--list-profiles`.
+
+### Notes
+
+- 100% backward compatible: bash code in `lib/credentials.sh`,
+  `lib/confirm.sh`, dispatch commands, INI format, and audit log format are
+  unchanged. Existing profiles work without migration.
+- Install profile is opt-in. `bash lib/install.sh` (no flag) keeps all 16
+  skills active, exactly like v0.10.0.
+- The `recipes.md` files use plain markdown link syntax that Claude follows
+  when it needs the implementation — no special loader integration needed.
+- SessionStart hook adds ~700–850ms of one-time bash exec on Git-Bash for
+  Windows (faster on macOS / Linux with native bash). It is async and
+  non-blocking; output goes to additionalContext, never to the user's
+  terminal directly.
+
 ## [0.10.0] - 2026-05-09
 
 ### Changed (BREAKING for skill discovery — all descriptions reworked)
@@ -314,7 +394,8 @@ No code changes. Pure documentation release.
 - Initial release with trello and azure-devops skills
 - `plugin.json` manifest, README, `.gitignore`, MIT LICENSE
 
-[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.3...HEAD
+[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.10.0...v0.11.0
 [0.9.3]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.0...v0.9.1

@@ -1,6 +1,6 @@
 ---
 name: sentry
-description: Use when investigating Sentry issues/events, resolving or assigning errors, or checking release health on sentry.io or self-hosted Sentry. Multi-org via SENTRY_PROFILE.
+description: "Use when user references Sentry, sentry.io URLs, *.sentry.io/issues/ links, error/exception/release alerts, pastes a stack trace for triage, or checks release health on cloud or self-hosted. Multi-org via SENTRY_PROFILE."
 user-invocable: true
 allowed-tools:
   - Read
