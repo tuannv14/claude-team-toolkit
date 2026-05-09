@@ -1,6 +1,6 @@
 ---
 name: xlsx-testcases
-description: Convert XLSX test cases to Maestro YAML / Detox / Markdown + sync Azure DevOps Test Plans. Use when team has xlsx test cases needing runnable specs or ADO sync.
+description: Use when team maintains test cases in XLSX (tester-owned source of truth) and needs conversion to Maestro YAML, Detox, or Markdown specs, or two-way sync with Azure DevOps Test Plans.
 user-invocable: true
 allowed-tools:
   - Read
@@ -15,6 +15,24 @@ generates runnable artifacts on demand, and syncs to Azure DevOps Test Plans.
 
 Deps: `anthropic-skills:xlsx` (delegate parsing), `jq`, `python3`. ADO sync
 uses `/azure-devops` skill (multi-profile).
+
+## Overview
+
+Bridges xlsx-based test case authoring (testers' familiar tool) with runnable test specs. Generates Maestro YAML / Detox / Markdown on demand and syncs to Azure DevOps Test Plans. xlsx remains the **source of truth** — generated artifacts are derivable.
+
+## When to Use
+
+- QA team maintains test cases in xlsx (no migration possible)
+- Need runnable artifacts (Maestro YAML, Detox, Markdown checklists)
+- Two-way sync with Azure DevOps Test Plans
+- Coverage gap reports (TCs in xlsx not yet automated)
+
+## When NOT to Use
+
+- Test cases live in code already → no need for this bridge
+- One-off conversion → use `anthropic-skills:xlsx` directly
+- Real-time test execution → this is scaffolding, not a runner
+- Non-tabular test specs (BDD `.feature` files) → use Cucumber / Gherkin tooling
 
 ## Schema mapping
 
@@ -122,6 +140,15 @@ Added: 3 TCs    Modified: 12 TCs    Removed: 1 TC
 - Generated runners are committed code — review before pushing public.
 - `.testcase-schema.yml` and `.testcase-sync-state.json` are safe to commit
   (no test data, only mapping + hashes).
+
+## Common Mistakes
+
+- No `.testcase-schema.yml` committed → schema inference per-run is non-deterministic
+- Step text "Tap submit" mapped to `tapOn:"submit"` then UI uses different label → test fails. Review unmapped comments.
+- Skipping `--dry-run` before ADO sync → hard to undo bulk changes
+- xlsx file in git as binary → diffs unreadable. Commit alongside `.testcase-schema.yml` at minimum.
+- UTF-8 encoding lost during sync → Vietnamese / Asian characters mangled
+- Editing generated YAML without source xlsx update → drift; xlsx is source of truth
 
 ## Workflow for QA team
 

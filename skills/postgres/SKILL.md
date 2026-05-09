@@ -1,6 +1,6 @@
 ---
 name: postgres
-description: PostgreSQL read-only queries, EXPLAIN, schema/indexes/locks, slow queries. Refuses mutating SQL without --write + typed confirmation. Multi-database via PG_PROFILE.
+description: Use when querying PostgreSQL — ad-hoc SELECT, EXPLAIN plans, schema/index/lock inspection, or slow-query investigation. Read-only by default; mutations require --write + typed confirmation. Multi-database via PG_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read
@@ -13,6 +13,25 @@ allowed-tools:
 Wraps `psql`. Read-only by default; mutating SQL requires `--write` + typed confirm.
 
 Profile resolution: `--profile` → `PG_PROFILE` → `~/.postgres/active_profile` → `[default]`.
+
+## Overview
+
+Wraps `psql` with read-only-by-default safety. Mutating SQL requires explicit `--write` flag plus typed database name confirmation. Profile-level `read_only=true` hard-refuses writes even with the flag (defense-in-depth).
+
+## When to Use
+
+- Ad-hoc SELECT queries against dev/staging/prod
+- EXPLAIN plans for slow queries
+- Schema / index / lock inspection during incidents
+- Identifying slow queries via `pg_stat_statements`
+- Killing stuck backends (with `--force` + typed `KILL`)
+
+## When NOT to Use
+
+- Application data writes → that's the app, not this skill
+- Migrations → use Rails / Alembic / Flyway with version control
+- Bulk data exports → `pg_dump` or `COPY` directly
+- Cross-database queries → use FDW or app-side joins
 
 ## Profile config
 
@@ -42,6 +61,8 @@ require_confirm = true
 **Why readonly_user**: defense-in-depth. Skill is read-only by default but DB-level grants prevent accidents even if skill is bypassed.
 
 ## Helpers
+
+> Shared profile/INI/`ctt_*` pattern reference: [profiles-and-credentials](../profiles-and-credentials/SKILL.md).
 
 ```bash
 source "$HOME/.claude-team-toolkit/lib/credentials.sh"
@@ -153,6 +174,15 @@ SELECT round(mean_exec_time::numeric, 2) AS avg_ms,
 FROM pg_stat_statements
 ORDER BY mean_exec_time DESC LIMIT ${LIMIT:-20};"
 ```
+
+## Common Mistakes
+
+- Using `EXPLAIN ANALYZE` on expensive queries → it actually runs them. Plain `EXPLAIN` first.
+- `sslmode=disable` for non-localhost → MITM risk. Min `require` for remote.
+- Connecting as superuser when `readonly_user` works → blast radius huge on accidents
+- Running mutations without `--write` → skill refuses (this is correct behavior)
+- Killing a backend without checking `pg_stat_activity` first → can break replication
+- "connection refused" → check `host`, `port`, firewall, `sslmode` in profile
 
 ## Safety
 

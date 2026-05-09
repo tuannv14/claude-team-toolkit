@@ -1,6 +1,6 @@
 ---
 name: maestro
-description: Maestro mobile E2E (YAML) for RN/iOS/Android. Use to run flows, record, inspect hierarchy, detect flaky tests. Multi-environment via MAESTRO_PROFILE.
+description: Use when running mobile E2E on React Native / iOS / Android, recording user flows, inspecting view hierarchy, or hunting flaky UI tests with Maestro. Multi-environment via MAESTRO_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read
@@ -13,6 +13,25 @@ allowed-tools:
 Wraps `maestro test`. Profiles = device + app build per environment.
 
 Profile resolution: `--profile` → `MAESTRO_PROFILE` → `~/.maestro/active_profile` → `[default]`.
+
+## Overview
+
+Wraps `maestro test` for mobile E2E. Flows are declarative YAML — testers can read/write them without coding. Profiles bind a device + app build per environment. Includes flaky-test detection across multiple JUnit runs.
+
+## When to Use
+
+- Mobile E2E flows on iOS / Android / React Native
+- Recording new flows interactively (no coding required)
+- Inspecting accessibility hierarchy to find selectors
+- Detecting flaky tests across multiple runs (JUnit XML diff)
+- Cloud-based device farm runs (Maestro Cloud)
+
+## When NOT to Use
+
+- Pure unit / component tests → Jest / JUnit, not E2E
+- Non-mobile (web, desktop) → wrong tool
+- Performance / load tests → use k6 or Detox
+- Personal phones (Maestro can hit any UI element including OS dialogs — dedicated test devices only)
 
 ## Dependencies
 
@@ -49,6 +68,8 @@ cloud_api_key = xxxxxxxxxxxxxxxxxxxxxxxx     # Maestro Cloud
 ```
 
 ## Helpers
+
+> Shared profile/INI/`ctt_*` pattern reference: [profiles-and-credentials](../profiles-and-credentials/SKILL.md).
 
 ```bash
 source "$HOME/.claude-team-toolkit/lib/credentials.sh"
@@ -148,6 +169,15 @@ Delegates to `xlsx-testcases gen maestro` — see that skill.
 ```
 
 Variables via env: `EMAIL=test@example.com maestro test flow.yaml`. Inside YAML: `${EMAIL}`.
+
+## Common Mistakes
+
+- Hard-coding credentials in YAML → leak on commit. Use `${ENV_VAR}` placeholders.
+- Selectors by text only → fragile across translations. Prefer `id:` (accessibility ID).
+- Running on real personal devices instead of simulators / test devices
+- Writing one mega-flow instead of small subflows + `runFlow:` composition
+- Cloud uploads need build artifact (`.app`/`.ipa`/`.apk`), not bundle ID
+- "Flaky test" verdict on first run → need ≥5 runs to distinguish flake from broken
 
 ## Safety
 

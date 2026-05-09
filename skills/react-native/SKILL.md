@@ -1,6 +1,6 @@
 ---
 name: react-native
-description: "React Native dev ops — clean caches, pod install, bundle analyze, device logs, version bump, icons/splash, patch-package. No credentials."
+description: "Use when troubleshooting React Native local dev — stale Metro/Watchman caches, pod install issues, bundle size analysis, device logs, version bumps, icon/splash regen, or patch-package."
 user-invocable: true
 allowed-tools:
   - Read
@@ -13,6 +13,26 @@ allowed-tools:
 Local commands for RN projects. No credentials. Works in cwd or `--path <dir>`.
 
 Deps: Node 18+, Yarn/npm, Watchman, Xcode (iOS), Android Studio + JDK 17 (Android).
+
+## Overview
+
+Local dev ops for React Native projects. No credentials needed — operates on the project tree. Solves the "won't build" mysteries (cache pollution, pod sync, version drift) that consume most of RN dev frustration.
+
+## When to Use
+
+- Build errors after dependency changes ("Module not found", stale Metro/Watchman caches)
+- CocoaPods install / Gradle issues
+- Bundle size analysis with source-map-explorer
+- Tailing device logs (`xcrun simctl` / `adb logcat`) with filter
+- Bumping version (package.json + iOS Info.plist + Android `build.gradle` in sync)
+- Generating icons / splash from a source PNG
+
+## When NOT to Use
+
+- Code signing / store releases → use `fastlane` skill
+- E2E tests → use `maestro` skill
+- Backend / API issues → wrong scope
+- Anything requiring Apple Developer account credentials
 
 ## Dispatch
 
@@ -104,12 +124,13 @@ These are simple enough to run as native commands:
 - Start Metro: `npx react-native start [--reset-cache]`
 - Bundle: `npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res`
 
-## Common pitfalls
+## Common Mistakes
 
 - "Module not found" after install → `start --reset-cache` + `clean --metro`
 - Gradle daemon stuck → `cd android && ./gradlew --stop && ./gradlew clean`
-- iOS keychain issues → use Fastlane match
+- iOS keychain issues → use Fastlane match (don't manually delete certs)
 - Pod install fails → check Ruby version (RN often needs 3.0+)
+- `clean --all` before checking what specifically broke → 5-15 min wasted on every run
 
 ## Safety
 

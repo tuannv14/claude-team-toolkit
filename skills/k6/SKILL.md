@@ -1,6 +1,6 @@
 ---
 name: k6
-description: k6 load/stress/soak/spike tests. Generate scripts, run, analyze p50/p95/p99. Multi-environment via K6_PROFILE. Prod requires typed RUN confirmation.
+description: Use when running load, stress, soak, or spike tests, or analyzing p50/p95/p99 latency against dev/staging/prod targets. Multi-environment via K6_PROFILE; prod requires typed RUN confirmation.
 user-invocable: true
 allowed-tools:
   - Read
@@ -15,6 +15,25 @@ select target environment (dev/staging/prod) so the same script runs against
 different hosts with different auth.
 
 Arguments: `$ARGUMENTS`. Profile resolution: `--profile <name>` flag → `K6_PROFILE` env → `~/.k6/active_profile` → `[default]`.
+
+## Overview
+
+Wrapper around k6 for load testing. Profiles select the target environment (dev/staging/prod) so the same script runs against different hosts with different auth. Prod profiles require typed `RUN` confirmation to prevent accidental DDoS of own infrastructure.
+
+## When to Use
+
+- Pre-release load testing (smoke/load before deploy)
+- Capacity planning (find breakpoint with stress test)
+- Soak tests (memory leaks, connection pool issues over time)
+- Latency regression tracking (p50/p95/p99 vs baseline)
+- Spike tests (cold cache, autoscaling validation)
+
+## When NOT to Use
+
+- Hitting third-party APIs without their consent → DDoS / TOS violation
+- Functional testing → k6 is for load, not assertion-heavy logic
+- Browser-based UI testing → use Maestro/Detox, not k6
+- VUs > 1000 without `--force` → almost always a typo
 
 ## Dependencies
 
@@ -57,7 +76,7 @@ duration = 5m
 require_confirm = true
 ```
 
-Load via shared helper:
+Load via shared helper (see [profiles-and-credentials](../profiles-and-credentials/SKILL.md) for the full pattern):
 
 ```bash
 source "$HOME/.claude-team-toolkit/lib/credentials.sh"
@@ -170,6 +189,15 @@ Same pattern as Trello/Azure DevOps profiles. See `lib/credentials.sh`.
   banned from real APIs.
 - Output `summary-export` JSON may contain URLs, response samples — treat as
   potentially sensitive (PII in error messages, etc.). Don't paste public.
+
+## Common Mistakes
+
+- Hard-coding auth in JS script → leaks on commit. Use env vars (`__ENV.X`).
+- No `--rps` cap when testing 3rd-party APIs → IP gets banned
+- Wrong test type for the question: stress to find breakpoint, soak for leaks, load for SLO
+- Comparing runs across environments → pointless. Compare same env over time.
+- Running prod profile without `require_confirm=true` set
+- VUs > 1000 without `--force` flag → almost always a typo
 
 ## Implementation notes
 

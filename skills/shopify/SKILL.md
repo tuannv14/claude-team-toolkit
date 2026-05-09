@@ -1,6 +1,6 @@
 ---
 name: shopify
-description: Shopify Admin GraphQL API for products/orders/customers/inventory. Use for product/order queries, inventory updates, draft orders. Multi-store + multi-app via SHOPIFY_PROFILE. API 2026-04 default.
+description: Use when querying or mutating Shopify products, orders, customers, inventory, or draft orders via the Admin GraphQL API. Multi-store and multi-app via SHOPIFY_PROFILE; API 2026-04 default.
 user-invocable: true
 allowed-tools:
   - Read
@@ -10,12 +10,30 @@ allowed-tools:
 
 # /shopify — Admin GraphQL API (multi-store, multi-app)
 
-REST/GraphQL against `https://<shop>.myshopify.com/admin/api/<version>/`.
-GraphQL primary (Shopify's recommended). Each profile = one
-`(shop_domain, access_token)` pair → supports multi-store AND multi-app
-on same store.
+GraphQL against `https://<shop>.myshopify.com/admin/api/<version>/`.
+Each profile = one `(shop_domain, access_token)` pair → multi-store AND
+multi-app on the same store (least-privilege scopes per app).
 
 Profile resolution: `--profile` → `SHOPIFY_PROFILE` → `~/.shopify/active_profile` → `[default]`.
+
+## Overview
+
+GraphQL primary against the Admin API. Each profile = one `(shop_domain, access_token)` pair, supporting multi-store AND multi-app on the same store (least-privilege scopes per app — e.g., separate inventory app vs read-only reporting app).
+
+## When to Use
+
+- Querying products / orders / customers / inventory programmatically
+- Bulk read via `bulkOperationRunQuery` for large catalogs
+- Inventory adjustments across multiple locations
+- Draft order creation for B2B / wholesale flows
+- Multi-store support (parent brand + child stores)
+
+## When NOT to Use
+
+- Storefront API (customer-facing) → different API, different auth
+- Theme development → use Shopify CLI's theme commands
+- App development → use Shopify CLI's app commands + framework
+- One-off Liquid changes → admin UI is faster
 
 ## Profile config
 
@@ -26,35 +44,24 @@ Profile resolution: `--profile` → `SHOPIFY_PROFILE` → `~/.shopify/active_pro
 shop_domain  = your-store.myshopify.com
 access_token = shpat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 api_version  = 2026-04                 # bump quarterly
-
-[main-inventory]
-shop_domain  = your-store.myshopify.com   # same store, different app
-access_token = shpat_inventory-app-token  # scopes: read/write_inventory only
-api_version  = 2026-04
-require_confirm = true
+require_confirm = true                 # gate mutations on prod
 ```
 
-**Multi-app benefits:** least-privilege scopes per app, audit separation,
-revocation granularity, team boundaries. See
-[examples/shopify-credentials.example](../../examples/shopify-credentials.example).
+See [examples/shopify-credentials.example](../../examples/shopify-credentials.example) for multi-app setup.
 
 **Get token:** Shopify admin → Settings → Apps → Develop apps → create
 Custom App → configure scopes → install → copy `shpat_*` (shown ONCE).
 
-**Required scopes per op (least privilege):**
+**Required scopes** (least privilege): `read_products`, `read_orders`,
+`read_customers`, `read_inventory`, `read_draft_orders`. Add the `write_*`
+counterpart only for mutating ops.
 
-| Op | Scopes |
-|---|---|
-| Products read/write | `read_products` (+ `write_products`) |
-| Orders read/write | `read_orders` (+ `write_orders`) |
-| Customers | `read_customers` (+ `write_customers`) |
-| Inventory | `read_inventory` (+ `write_inventory`) |
-| Draft orders | `read_draft_orders` + `write_draft_orders` |
-
-**Versioning:** Shopify ships YYYY-MM stable releases quarterly,
-supported 12 months. Bump `api_version` quarterly. Never use `unstable`.
+**Versioning:** Shopify ships YYYY-MM stable releases quarterly, supported
+12 months. Bump `api_version` quarterly. Never use `unstable`.
 
 ## Helpers
+
+> Shared profile/INI/`ctt_*` pattern reference: [profiles-and-credentials](../profiles-and-credentials/SKILL.md).
 
 ```bash
 source "$HOME/.claude-team-toolkit/lib/credentials.sh"
@@ -77,157 +84,48 @@ shopify_gql() {
 }
 ```
 
+## Commands
+
+| Subcommand | Purpose |
+|---|---|
+| `configure` | Interactive profile setup |
+| `profile {list,use,current,remove}` | Profile management |
+| `shop` | Current shop info |
+| `products [--limit N] [--query]` | List products |
+| `product <gid>` | Full product detail |
+| `orders [--status] [--limit N]` | Recent orders |
+| `order <gid>` | Full order + line items + fulfillments |
+| `customers [--query] [--limit N]` | List customers |
+| `inventory <variant-gid>` | Levels per location |
+| `update-product <gid> <field=value>...` | **DESTRUCTIVE** |
+| `update-inventory <variant-gid> <count>` | **DESTRUCTIVE** |
+| `gql <query-or-file> [vars]` | Raw GraphQL escape hatch |
+
+Full query and mutation bodies: see [commands.md](commands.md).
+
 ## Rate limits
 
-- GraphQL: cost-based, 50 pts/sec restore, 1000 max bucket. Check
-  `extensions.cost` in response.
-- 429 → respect `Retry-After` header.
-- Bulk reads → use `bulkOperationRunQuery`.
+GraphQL cost-based: 50 pts/sec restore, 1000 max bucket. Check
+`extensions.cost` in the response. On `429` respect `Retry-After`.
+For bulk reads use `bulkOperationRunQuery`.
 
-## Dispatch
+## Common Mistakes
 
-### `configure` — interactive setup
-Profile name → shop_domain → access_token (hidden) → api_version → require_confirm. Validate via `shop` query. Save mode 600.
-
-### `profile list|use|current|remove` — see lib/credentials.sh
-
-### `shop` — current shop info
-```bash
-shopify_gql 'query { shop { name email myshopifyDomain currencyCode plan { displayName } } }' | jq '.data.shop'
-```
-
-### `products [--limit N] [--query "title:foo"]`
-```bash
-LIMIT="${LIMIT:-10}"; case "$LIMIT" in ''|*[!0-9]*) LIMIT=10 ;; esac
-shopify_gql '
-query($f:Int!, $q:String) {
-  products(first:$f, query:$q) {
-    edges { node { id title handle status totalInventory priceRangeV2 { minVariantPrice { amount currencyCode } } } }
-  }
-}' "$(jq -n --argjson f "$LIMIT" --arg q "$QUERY" '{f:$f, q:$q}')"
-```
-
-### `product <gid>` — full product (id = `gid://shopify/Product/<num>`)
-```bash
-shopify_gql '
-query($id:ID!) {
-  product(id:$id) {
-    id title vendor productType status tags descriptionHtml
-    priceRangeV2 { minVariantPrice { amount } maxVariantPrice { amount } }
-    variants(first:50) { edges { node { id title sku price inventoryQuantity } } }
-  }
-}' "$(jq -n --arg id "$ID" '{id:$id}')"
-```
-
-### `orders [--status open|closed|any] [--limit N]`
-```bash
-shopify_gql '
-query($f:Int!, $q:String) {
-  orders(first:$f, query:$q, sortKey:CREATED_AT, reverse:true) {
-    edges { node {
-      id name email createdAt
-      totalPriceSet { shopMoney { amount currencyCode } }
-      displayFinancialStatus displayFulfillmentStatus
-      customer { displayName email }
-    } }
-  }
-}' "$(jq -n --argjson f "$LIMIT" --arg q "${STATUS:+status:$STATUS}" '{f:$f, q:$q}')"
-```
-
-### `order <gid>` — full order with line items + fulfillments
-```bash
-shopify_gql '
-query($id:ID!) {
-  order(id:$id) {
-    id name email phone createdAt cancelledAt
-    totalPriceSet { shopMoney { amount currencyCode } }
-    displayFinancialStatus displayFulfillmentStatus
-    shippingAddress { name address1 city province country zip }
-    lineItems(first:50) { edges { node { title quantity sku } } }
-    fulfillments { id status trackingInfo { number url } }
-  }
-}' "$(jq -n --arg id "$ID" '{id:$id}')"
-```
-
-### `customers [--query] [--limit N]`
-```bash
-shopify_gql '
-query($f:Int!, $q:String) {
-  customers(first:$f, query:$q) {
-    edges { node { id displayName email phone numberOfOrders amountSpent { amount } } }
-  }
-}' "$(jq -n --argjson f "$LIMIT" --arg q "$QUERY" '{f:$f, q:$q}')"
-```
-
-### `inventory <variant-gid>` — current levels per location
-```bash
-shopify_gql '
-query($id:ID!) {
-  productVariant(id:$id) {
-    id sku title
-    inventoryItem { tracked inventoryLevels(first:10) { edges { node { available location { name } } } } }
-  }
-}' "$(jq -n --arg id "$VARIANT_ID" '{id:$id}')"
-```
-
-### `update-product <gid> <field=value>...` — DESTRUCTIVE
-Fields: `title`, `status` (`ACTIVE|DRAFT|ARCHIVED`), `tags`, `vendor`, `productType`.
-```bash
-ctt_warn_destructive "Update product $ID on $CTT_SHOP_DOMAIN ($CTT_PROFILE)"
-ctt_confirm "Type product ID to confirm:" "$ID" || return 1
-
-INPUT=$(jq -n '{id:$id} + ($args | map(split("=")) | map({key:.[0], value:.[1]}) | from_entries)' \
-  --arg id "$ID" --slurpfile args <(printf '%s\n' "$@" | jq -R .))
-
-shopify_gql '
-mutation($input:ProductInput!) {
-  productUpdate(input:$input) { product { id title status } userErrors { field message } }
-}' "$(jq -n --argjson i "$INPUT" '{input:$i}')"
-
-ctt_audit_log shopify "update-product $ID fields: $(echo "$@" | sed 's/=[^ ]*//g')"
-```
-
-### `update-inventory <variant-gid> <count> [--location <gid>]` — DESTRUCTIVE
-```bash
-ctt_warn_destructive "Set inventory $VARIANT_ID = $COUNT"
-ctt_confirm "Type variant ID:" "$VARIANT_ID" || return 1
-
-ITEM=$(shopify_gql "{ productVariant(id:\"$VARIANT_ID\"){ inventoryItem { id } } }" | jq -r '.data.productVariant.inventoryItem.id')
-LOC="${LOCATION:-$(shopify_gql '{ locations(first:1){ edges{ node{ id } } } }' | jq -r '.data.locations.edges[0].node.id')}"
-
-shopify_gql '
-mutation($input:InventoryAdjustQuantitiesInput!) {
-  inventoryAdjustQuantities(input:$input) {
-    inventoryAdjustmentGroup { id } userErrors { field message }
-  }
-}' "$(jq -n --arg item "$ITEM" --arg loc "$LOC" --argjson n "$COUNT" '{
-  input: { reason:"correction", name:"available", changes:[{inventoryItemId:$item, locationId:$loc, delta:$n}] }
-}')"
-
-ctt_audit_log shopify "inventory-set variant=$VARIANT_ID count=$COUNT"
-```
-
-### `gql <query-file-or-string> [variables-json]` — raw GraphQL escape hatch
-For draft orders, bulk operations, webhooks, custom field selections.
-```bash
-QUERY=$([ -f "$1" ] && cat "$1" || echo "$1")
-shopify_gql "$QUERY" "${2:-{}}"
-```
-
-Example bulk read:
-```bash
-/shopify gql 'mutation { bulkOperationRunQuery(query:"...") { bulkOperation { id status } } }'
-/shopify gql '{ currentBulkOperation { id status objectCount url } }'   # poll
-```
+- Using `unstable` API version → breaks weekly. Pin to YYYY-MM stable.
+- Storing token in code/git → revoke immediately, rotate
+- Querying without rate awareness → 429 storms. Check `extensions.cost`.
+- Bulk read with offset pagination instead of `bulkOperationRunQuery` → slow + rate-limited
+- One mega-app with all scopes → can't audit which feature uses what. Split per concern.
+- Forgetting `gid://shopify/<Type>/<id>` format on mutations → user errors
 
 ## Safety
 
-- `access_token` = full granted scopes for that store. **Never log raw**.
-  Skill masks as `****<last4>`.
+- `access_token` grants the full scope set for that store. **Never log
+  raw** — skill masks as `****<last4>`.
 - All mutations gated by `ctt_confirm`. Set `require_confirm=true` on prod.
-- `update-product` requires typing product ID to confirm.
-- **Not in skill** (intentionally): product/customer delete, order cancel
-  → use Shopify admin UI for those.
-- Rate limits surfaced as errors, not auto-retried — caller decides.
+- `update-product` requires typing the product ID to confirm.
+- **Excluded intentionally:** product/customer delete, order cancel → use
+  admin UI.
+- Rate-limit errors are surfaced, not auto-retried — caller decides.
 - PII in customers/orders → don't paste raw output publicly.
-- Compromise: revoke at admin → Settings → Apps → Uninstall.
+- On token compromise: revoke at Settings → Apps → Uninstall.

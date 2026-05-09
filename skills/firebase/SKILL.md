@@ -1,6 +1,6 @@
 ---
 name: firebase
-description: Firebase Remote Config, App Distribution, Crashlytics symbols, Functions, Hosting via CLI. Use to deploy, push config, distribute beta builds, upload dSYM. Multi-project via FIREBASE_PROFILE.
+description: Use when working with Firebase — Remote Config rollouts, App Distribution beta builds, Crashlytics dSYM uploads, Cloud Functions deploys, or Hosting. Multi-project via FIREBASE_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read
@@ -14,6 +14,24 @@ Wraps `firebase` CLI with profile-based project switching. Each profile pins
 project ID + service account JSON + default app IDs.
 
 Profile resolution: `--profile` → `FIREBASE_PROFILE` → `~/.firebase/active_profile` → `[default]`.
+
+## Overview
+
+Wraps `firebase` CLI with profile-based project switching. Each profile pins a project ID + service account JSON + default app IDs, so commands target the right env without explicit flags.
+
+## When to Use
+
+- Push Remote Config (rollouts to production users)
+- Distribute beta builds via App Distribution (testers groups)
+- Upload Crashlytics dSYM / Proguard mapping (mandatory for readable prod stacks)
+- Deploy Cloud Functions, manage Hosting channels (preview URLs)
+
+## When NOT to Use
+
+- Firebase web/mobile client SDK → that's the SDK in your app, not this skill
+- Firestore data ops → use Firestore SDK or Admin SDK in code
+- Auth flows → SDK in app, not CLI
+- Project setup / billing → Firebase Console UI
 
 ## Profile config
 
@@ -47,6 +65,8 @@ auth flow. CI/automation always uses SA. `firebase login` writes a token
 with full user permissions (often Owner role).
 
 ## Helpers
+
+> Shared profile/INI/`ctt_*` pattern reference: [profiles-and-credentials](../profiles-and-credentials/SKILL.md).
 
 ```bash
 source "$HOME/.claude-team-toolkit/lib/credentials.sh"
@@ -157,6 +177,15 @@ firebase_run hosting:channel:list
 ```
 
 Preview channels = stakeholder review URLs without affecting prod.
+
+## Common Mistakes
+
+- Using default service account → over-privileged. Create dedicated SA per role.
+- Forgetting dSYM upload → crash stacks unreadable in prod
+- `firebase login` token instead of SA → has Owner role, blast radius huge
+- Wrong project (default vs prod) → check `--project` resolves correctly
+- 401/403 → SA missing role; check IAM in GCP console
+- Pushing Remote Config without checking current live version first → unintended user impact
 
 ## Safety
 

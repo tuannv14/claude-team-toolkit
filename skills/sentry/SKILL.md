@@ -1,6 +1,6 @@
 ---
 name: sentry
-description: Sentry issues/events/releases via API. Use to fetch errors, resolve/assign issues, release health. SaaS + self-hosted. Multi-org via SENTRY_PROFILE.
+description: Use when investigating Sentry issues/events, resolving or assigning errors, or checking release health on sentry.io or self-hosted Sentry. Multi-org via SENTRY_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read
@@ -14,6 +14,25 @@ REST against `https://sentry.io/api/0/` (or self-hosted Sentry instance).
 Bearer auth with API token. Profiles isolate org/project pairs.
 
 Arguments: `$ARGUMENTS`. Profile resolution: `--profile <name>` → `SENTRY_PROFILE` → `~/.sentry/active_profile` → `[default]`.
+
+## Overview
+
+REST against `https://sentry.io/api/0/` (or self-hosted). Bearer auth with API token. Profiles isolate org/project pairs. Default summary view (no PII) — opt-in `--full` for raw stacktraces.
+
+## When to Use
+
+- Investigating issues during incidents (latest unresolved, last 24h)
+- Resolving or assigning issues to teammates
+- Release health (new issues per release, commit count)
+- Self-hosted Sentry instances (`api_url` per profile)
+- Triaging error spikes across multiple projects in one org
+
+## When NOT to Use
+
+- Sending events to Sentry → use the SDK in your app, not this skill
+- Bulk operations on hundreds of issues → use Sentry's UI bulk actions
+- Sourcemap upload → use `@sentry/cli` or Webpack/Vite plugin
+- User management at scale → Sentry's admin UI
 
 ## Dependencies
 
@@ -56,6 +75,8 @@ Get token: User Settings → Auth Tokens → Create New Token.
 Use **org-scoped** tokens (limits to one org) when possible.
 
 ## Helpers
+
+> Shared profile/INI/`ctt_*` pattern reference: [profiles-and-credentials](../profiles-and-credentials/SKILL.md).
 
 ```bash
 source "$HOME/.claude-team-toolkit/lib/credentials.sh"
@@ -168,6 +189,15 @@ sentry_api GET "/organizations/$CTT_ORG/projects/" \
   intentionally NO `delete` command in this skill.
 - Self-hosted Sentry: `api_url` includes path `/api/0`. Don't forget.
 - 429 Too Many Requests: Sentry API rate limit (40 req/s default for free).
+
+## Common Mistakes
+
+- Self-hosted: forgetting `/api/0` in `api_url` → 404 on every call
+- Pasting raw event output publicly → leaks PII (user IDs, request bodies)
+- Using user-scoped tokens → blast radius is all your orgs. Use org-scoped.
+- Resolving without root cause → issue re-opens on next event, frustration loop
+- 429 ignored → API gets temp-banned. Respect `Retry-After`.
+- Querying with `is:resolved` then surprised it includes old issues — add `age:-Nd` for recency
 
 ## Token-saving tip
 

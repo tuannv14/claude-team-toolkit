@@ -1,6 +1,6 @@
 ---
 name: rspec
-description: RSpec runner for Rails. Parse failures from JSON, re-run only failed, parallel via parallel_tests, coverage, --bisect. Multi-project via RSPEC_PROFILE.
+description: Use when running RSpec on a Rails project — re-running only failed examples, parallelizing with parallel_tests, generating coverage, or bisecting test-order failures. Multi-project via RSPEC_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read
@@ -12,6 +12,25 @@ allowed-tools:
 Wraps `bundle exec rspec` with structured output parsing and selective retry. No external credentials.
 
 Profile resolution: `--profile` → `RSPEC_PROFILE` → `~/.rspec/active_profile` → `[default]`.
+
+## Overview
+
+Wraps `bundle exec rspec` with structured JSON output parsing and selective retry. No external credentials. Profiles isolate per-project test settings (parallel workers, seed strategy, rails_env).
+
+## When to Use
+
+- Running RSpec test suites with structured failure output
+- Re-running only failed examples (after a fix attempt)
+- Parallelizing with `parallel_tests` (multi-core machines, CI)
+- Bisecting test-order failures (`--bisect`)
+- Coverage reports via simplecov
+
+## When NOT to Use
+
+- Non-Rails Ruby tests → bare `rspec` works fine
+- Minitest projects → use `rake test`, not this skill
+- E2E / browser tests → not RSpec's job
+- Production debugging → tests are not a debugger
 
 ## Profile config
 
@@ -32,6 +51,8 @@ seed_strategy = fixed:1234
 ```
 
 ## Helpers
+
+> Shared profile/INI/`ctt_*` pattern reference: [profiles-and-credentials](../profiles-and-credentials/SKILL.md).
 
 ```bash
 source "$HOME/.claude-team-toolkit/lib/credentials.sh"
@@ -130,6 +151,15 @@ Common tags: `:focus`, `:slow`, `:integration`.
 ```bash
 bundle exec rspec --bisect --example "$DESC"
 ```
+
+## Common Mistakes
+
+- Forgetting `RAILS_ENV=test` → drops dev/prod data. Skill enforces this.
+- `--seed random` then trying to reproduce → impossible. Set `fixed:N` for repro.
+- Running `parallel` with workers=1 in profile → no speedup, use `run` instead
+- `simplecov.start` AFTER `require 'rails'` → coverage misses framework load
+- Re-running full suite when `--only-failures` would work → wastes minutes
+- "Database is locked" → another test process holding it; kill stale `rspec` first
 
 ## Implementation notes
 

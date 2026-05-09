@@ -1,6 +1,6 @@
 ---
 name: rails-security
-description: Brakeman + bundler-audit combined for Rails security. Use for SQL injection/XSS/CSRF + Gemfile.lock CVE scans. Diff mode shows only NEW issues vs base branch (git worktree, non-destructive).
+description: Use when auditing a Rails app for SQL injection, XSS, CSRF, mass-assignment, or Gemfile.lock CVEs, or when reviewing only NEW security regressions in a PR vs base branch.
 user-invocable: true
 allowed-tools:
   - Read
@@ -11,6 +11,24 @@ allowed-tools:
 
 Combined Rails security scan. No credentials. Subcommands:
 `vulns`, `cves`, `audit`, `diff`, `ignore`, `update`.
+
+## Overview
+
+Combined Brakeman (static analysis) + bundler-audit (CVE) scan for Rails apps. `diff` mode is the killer feature: shows only NEW issues vs base branch via git worktree (non-destructive — never touches your working tree).
+
+## When to Use
+
+- Pre-PR security gate (new SQL injection, XSS, CSRF, mass-assignment)
+- Auditing `Gemfile.lock` for known CVEs
+- PR review: only see what THIS PR introduced, not pre-existing noise
+- Adding ignored issues with documented reason for audit trail
+
+## When NOT to Use
+
+- Non-Rails projects → Brakeman is Rails-specific
+- Runtime / dynamic security testing → use OWASP ZAP, not static scanners
+- Dependency updates not security-related → use Dependabot / Renovate
+- Auditing infrastructure (Docker, k8s) → wrong scope
 
 ## Dependencies
 
@@ -126,6 +144,15 @@ ALWAYS require a reason — without it future maintainers can't audit decisions.
 ```bash
 bundle-audit update     # hits GitHub; fallback: bundle-audit check --no-update
 ```
+
+## Common Mistakes
+
+- Ignoring without a reason → future maintainers can't audit decisions
+- Running scanner on full codebase every PR → use `diff` mode for noise reduction
+- Stash-based diff instead of worktree → destructive on Ctrl-C / OOM
+- Skipping `bundle-audit update` → stale CVE database misses recent vulns
+- Brakeman ignore by line number → use fingerprint (survives refactors)
+- Treating Brakeman `Low` as noise → some are real, just rare paths
 
 ## Safety
 

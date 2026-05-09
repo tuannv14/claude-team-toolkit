@@ -1,6 +1,6 @@
 ---
 name: heroku
-description: Heroku apps/dynos/releases/config/logs via Platform API v3. Use for deploy, scale, restart, config-set, logs, rollback, pipeline promote. Auto-masks secrets. Multi-account via HEROKU_PROFILE.
+description: Use when user references Heroku apps, dynos, releases, config vars, log tails, rollbacks, or pipeline promotions. Auto-masks secrets; multi-account via HEROKU_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read
@@ -14,6 +14,25 @@ Direct REST against `https://api.heroku.com`. No Heroku CLI dependency.
 Bearer auth with API key.
 
 Profile resolution: `--profile` → `HEROKU_PROFILE` → `~/.heroku/active_profile` → `[default]`.
+
+## Overview
+
+Direct REST against Platform API v3. No Heroku CLI dependency. Bearer auth with API key. Auto-masks secrets in config var output (`KEY|SECRET|TOKEN|PASSWORD|DSN|URL`). Multi-account via profile.
+
+## When to Use
+
+- Heroku app management: dynos, releases, config, logs
+- Pipeline promotions (staging → prod)
+- Rollback to a previous release
+- Investigating prod via log streams or release history
+- Investigating "why isn't my dyno running" issues
+
+## When NOT to Use
+
+- Heroku build/buildpack logic → that's a Procfile + buildpack thing
+- One-off deploys → `git push heroku main` directly
+- Add-on provisioning that needs interactive plan selection → admin UI
+- Anything involving Dashboard 2FA flows
 
 ## Profile config
 
@@ -34,6 +53,8 @@ require_confirm = true                   # gate every mutation
 Authorizations. Use **scoped tokens** (read/write/deploy) — avoid global.
 
 ## Helpers
+
+> Shared profile/INI/`ctt_*` pattern reference: [profiles-and-credentials](../profiles-and-credentials/SKILL.md).
 
 ```bash
 source "$HOME/.claude-team-toolkit/lib/credentials.sh"
@@ -174,6 +195,15 @@ ctt_confirm "Type the app name exactly:" "$APP" || return 1
 heroku_api DELETE "/apps/$APP"
 ctt_audit_log heroku "DESTROYED $APP"
 ```
+
+## Common Mistakes
+
+- Pasting unmasked config output publicly → secrets leak. Use default masked view.
+- Global API tokens vs scoped → prefer scoped (`-s read|write|deploy`)
+- Forgetting `default_app` → every command needs explicit `<app>` arg
+- 401 vs 403 confusion: 401 = token revoked, 403 = scope missing, 404 = wrong app name
+- Pipeline promote without checking which apps are in the pipeline first
+- Auditing `config-set` values instead of just key names → secrets land in audit log
 
 ## Safety
 

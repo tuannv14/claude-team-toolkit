@@ -7,6 +7,47 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-05-09
+
+### Changed (BREAKING for skill discovery — all descriptions reworked)
+- **All 15 skill `description` fields rewritten** to start with "Use when..."
+  per superpowers:writing-skills standard. Descriptions now focus on
+  triggering conditions (symptoms, contexts) instead of feature lists.
+  This significantly improves auto-invocation accuracy when users mention
+  related topics (e.g., "Trello card abc" now reliably triggers /trello).
+- **All 15 skills now have standardized sections**: `## Overview`,
+  `## When to Use`, `## When NOT to Use`, `## Common Mistakes` — added
+  for discoverability and to match writing-skills structural requirements.
+
+### Added
+- **New shared skill `profiles-and-credentials`** — reference for the
+  INI/profile/`ctt_*` pattern used by all credential-bearing skills.
+  Single source of truth; the 12 credential skills now link to it from
+  their Helpers section instead of repeating the pattern inline.
+- **Test scenarios for TDD workflow**:
+  `skills/postgres/test-scenarios.md` (4 pressure scenarios for the
+  discipline aspects: read-only enforcement, sslmode, kill confirmation,
+  EXPLAIN ANALYZE) and `skills/shopify/test-scenarios.md` (5 application
+  scenarios for the reference aspects: multi-store, mutations, bulk read,
+  API version policy, token security).
+- **`skills/shopify/commands.md`** — heavy GraphQL query reference
+  extracted from SKILL.md (which was 1032 words, now 655 words after
+  split per writing-skills "Skill with Heavy Reference" pattern).
+
+### Improved
+- Search keywords (error messages, symptoms like 401/403, "connection
+  refused") added to Common Mistakes sections of azure-devops, firebase,
+  heroku, postgres, sentry, slack, etc.
+- `react-native` and `fastlane` "Common pitfalls" sections renamed to
+  `Common Mistakes` for consistency across the suite.
+
+### Notes
+- This is a documentation/structure-only release. No behavior changes
+  in skill bash code. Existing profiles, credentials, and dispatch
+  commands work identically.
+- Skill word counts increased (added sections) but skills are
+  user-invocable (loaded on demand), not auto-loaded — size is fine.
+
 ## [0.9.3] - 2026-05-05
 
 ### Fixed (CRITICAL)

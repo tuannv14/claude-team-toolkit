@@ -1,6 +1,6 @@
 ---
 name: slack
-description: Slack post/threads/files via Web API. Use to post deploy alerts, fetch history, upload files, list channels. Multi-workspace via SLACK_PROFILE.
+description: Use when posting Slack messages/threads, uploading files, fetching channel history, or sending deploy/incident alerts. Multi-workspace via SLACK_PROFILE.
 user-invocable: true
 allowed-tools:
   - Read
@@ -13,6 +13,25 @@ REST against `https://slack.com/api/`. Bearer auth with bot/user OAuth token.
 Profiles isolate workspaces.
 
 Arguments: `$ARGUMENTS`. Profile resolution: `--profile <name>` → `SLACK_PROFILE` → `~/.slack/active_profile` → `[default]`.
+
+## Overview
+
+REST against Slack Web API with bot OAuth tokens. Profiles isolate workspaces. Default to bot tokens (`xoxb-`) — never use user tokens (`xoxp-`) which carry the user's full permissions.
+
+## When to Use
+
+- Posting deploy / incident alerts to channels
+- Threaded replies to existing messages (incident timelines)
+- Block Kit rich messages (status dashboards, deploy summaries)
+- File uploads (logs, screenshots) for incident triage
+- Fetching channel history for context
+
+## When NOT to Use
+
+- Real-time event consumption → use Events API + your own server, not REST
+- Slash command handlers → that's an HTTP webhook, not API client
+- Complex workflows → Slack Workflow Builder or Bolt SDK
+- Direct messages to users at scale → looks spammy, against TOS
 
 ## Dependencies
 
@@ -53,6 +72,8 @@ default_channel = #project-a
 the user's full permissions and are riskier if leaked.
 
 ## Helpers
+
+> Shared profile/INI/`ctt_*` pattern reference: [profiles-and-credentials](../profiles-and-credentials/SKILL.md).
 
 ```bash
 source "$HOME/.claude-team-toolkit/lib/credentials.sh"
@@ -174,6 +195,15 @@ slack_api GET users.list | jq -r '.members[] | select(.deleted == false) | "\(.i
   confidential, don't paste publicly.
 - Rate limits: Tier 1 (1 req/min), Tier 2 (20/min), Tier 3 (50/min), Tier 4
   (100/min) — `chat.postMessage` is Tier 4. See `Retry-After` header on 429.
+
+## Common Mistakes
+
+- Using `xoxp-` user tokens "to make it work" → security risk. Re-install bot with proper scopes.
+- Posting before inviting bot to channel → `not_in_channel` error. `/invite @YourBot` first.
+- Block Kit JSON syntax errors → validate at block-kit-builder before posting
+- Old upload API (`files.upload`) → deprecated. Use 2-step `getUploadURLExternal` flow.
+- Ignoring 429 rate limits → workspace-wide cooldown affects all apps
+- Posting to `#general` without confirmation → most workspaces have it on ALL channel
 
 ## Token-saving tip
 

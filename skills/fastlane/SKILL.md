@@ -1,6 +1,6 @@
 ---
 name: fastlane
-description: "Fastlane lanes for iOS/Android release — TestFlight, App Store, Play Console, match code signing. Multi-app via FASTLANE_PROFILE."
+description: "Use when releasing iOS/Android builds, uploading to TestFlight, App Store Connect, or Play Console, or managing code signing with match. Multi-app via FASTLANE_PROFILE."
 user-invocable: true
 allowed-tools:
   - Read
@@ -14,6 +14,24 @@ Wraps `bundle exec fastlane` for iOS/Android release workflows. Profiles
 manage credentials per app/team. The `Fastfile` lives in the project repo.
 
 Profile resolution: `--profile` → `FASTLANE_PROFILE` → `~/.fastlane/active_profile` → `[default]`.
+
+## Overview
+
+Wraps `bundle exec fastlane` for mobile release workflows. Profiles per app/team isolate API keys, signing repos, and credentials. The `Fastfile` lives in the project repo — this skill orchestrates which env vars and lanes to run.
+
+## When to Use
+
+- Releasing iOS/Android: TestFlight, App Store Connect, Play Console
+- Code signing via match (cert/profile sync through encrypted git)
+- Beta distribution to testers (TestFlight, Play internal track)
+- Generating screenshots, pulling/pushing App Store metadata
+
+## When NOT to Use
+
+- Project has no `Fastfile` → set up Fastlane first (`fastlane init`)
+- One-off CLI builds → `xcodebuild` / `gradle` directly
+- Web/non-mobile releases → wrong tool
+- Build errors unrelated to release → use `react-native` or platform tools
 
 ## Profile config
 
@@ -45,6 +63,8 @@ revocable. CI breaks daily on Apple ID + phone-based 2FA codes.
 on team gets identical signing setup. Encrypted with `match_password`.
 
 ## Helpers
+
+> Shared profile/INI/`ctt_*` pattern reference: [profiles-and-credentials](../profiles-and-credentials/SKILL.md).
 
 ```bash
 source "$HOME/.claude-team-toolkit/lib/credentials.sh"
@@ -131,8 +151,10 @@ fastlane_run supply --action download_metadata          # Android
 - iOS keystore lost = re-create with match. Android keystore lost = can't
   update app on Play. Back up encrypted to git.
 
-## Common pitfalls
+## Common Mistakes
 
 - "Bundle ID mismatch" → check `app_identifier` in Appfile vs Xcode.
 - "Code signing failed" → 99% fixed by `match-sync`.
 - "App Store rate limit" → use API key (much higher limit) not Apple ID.
+- Committing `.p8` API key or `match_password` → revoke + rotate immediately
+- Running `match readonly:false` from CI → creates new certs, breaks team setup
