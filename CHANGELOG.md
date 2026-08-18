@@ -7,6 +7,48 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-08-18
+
+### Fixed
+
+- **`trello` — comments and card titles silently corrupted when the text contained
+  any non-ASCII character.** A comment posted with an em dash came back as
+  `Root cause identified%3A ... %2A%2Afirst%2A%2A ... %0A` — every punctuation mark
+  and newline stored as its percent-escape, with a `200 OK` and a valid action id.
+
+  Chain: on Windows Git Bash, non-ASCII argv is converted through the ANSI codepage
+  before reaching the native `curl.exe`, so U+2014 arrives as the single byte `0x97`.
+  `--data-urlencode` puts `%97` on the wire; that is not valid UTF-8, so Trello's
+  form parser gives up and stores the still-escaped string verbatim. Pure-ASCII text
+  is unaffected, which is why this went unnoticed.
+
+  All write recipes now build a JSON body with `jq -a` (ASCII output, so every
+  non-ASCII char becomes `\uXXXX`) and send it with `--data-binary @file`, which
+  never touches argv. Covers `comment`, `create`, `move`, `archive`.
+
+  Verified end to end on a throwaway private board: `--data-urlencode` + em dash
+  reproduces the corruption; the JSON path round-trips em dash, curly apostrophe and
+  Vietnamese diacritics intact.
+
+### Added
+
+- `trello` — new **Writing text (JSON body only)** section explaining the trap, and
+  the in-place comment edit recipe
+  (`PUT /1/cards/<idCard>/actions/<idAction>/comments`) so a bad comment is repaired
+  rather than deleted and reposted.
+- `trello` — mandatory read-back step after posting a comment: a mangled body still
+  returns `200`, so the stored value must be fetched and inspected before reporting
+  success.
+
+### Changed
+
+- `trello` — dependency note now states **jq 1.6+** (the write recipes need
+  `--rawfile` and `-a`).
+- `trello` — Implementation notes and Common Mistakes inverted: the old advice was
+  "**Always** `--data-urlencode` for user-supplied strings", which is exactly what
+  produced the bug. Reads still use the query string with `jq -sRr @uri`; only
+  writes changed.
+
 ## [0.11.0] - 2026-05-09
 
 ### Added — Token efficiency & UX (informed by an audit against everything-claude-code patterns)
@@ -394,7 +436,8 @@ No code changes. Pure documentation release.
 - Initial release with trello and azure-devops skills
 - `plugin.json` manifest, README, `.gitignore`, MIT LICENSE
 
-[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.11.1...HEAD
+[0.11.1]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.10.0...v0.11.0
 [0.9.3]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/tuannv14/claude-team-toolkit/compare/v0.9.1...v0.9.2
