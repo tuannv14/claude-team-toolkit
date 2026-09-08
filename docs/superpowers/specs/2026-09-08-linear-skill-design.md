@@ -169,7 +169,8 @@ Adding a skill touches more than its own folder:
 2. `.claude-plugin/marketplace.json` — same two edits in the plugin entry.
 3. `.claude-plugin/install-profiles.json` — add `linear` to the `pm` profile.
 4. `lib/session-start.sh` — add `linear` to `SERVICES` so the hook reports it.
-5. `.claude-plugin/hooks/hooks.json` — add `linear` to the hook description.
+5. `hooks/hooks.json` — add `linear` to the hook description. It must live at
+   the plugin root; Claude Code does not read `.claude-plugin/hooks/`.
 6. `README.md` — every place that names the skill set or its count: badge and
    the "bundling N integration skills" line, service-integration table,
    quick-start examples, dependency table, multi-account table, the "all N

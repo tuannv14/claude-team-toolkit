@@ -7,6 +7,24 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-09-08
+
+### Fixed — the SessionStart hook had never run
+
+`hooks.json` shipped at `.claude-plugin/hooks/hooks.json`. Claude Code does not
+read that path, so the hook was silently never registered: `claude plugin details`
+reported **Hooks (0)** for this plugin while every other installed plugin, which
+keeps its hooks at `hooks/hooks.json` in the plugin root, reported its real count.
+
+The hook has therefore been inert since it was introduced in v0.11.0 — the
+credential pre-warm it advertises in the README and CHANGELOG never happened.
+Moved to `hooks/hooks.json`.
+
+Two CI guards added: `.claude-plugin/hooks/` must not exist, and every file a
+hook's command references must be present in the repo. The second guard was
+itself fixed during testing — its `while` loop sat on the right of a pipe, so its
+`exit 1` ran in a subshell and left the step green.
+
 ## [0.12.1] - 2026-09-08
 
 Patch release. A post-release audit of the README turned up one functional bug

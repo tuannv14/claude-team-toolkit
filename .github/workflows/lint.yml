@@ -22,6 +22,35 @@ jobs:
           test "$(jq -r '.plugins | length' .claude-plugin/marketplace.json)" -ge 1 \
             || { echo "FAIL: marketplace.json must list at least one plugin"; exit 1; }
 
+      - name: Hooks must be at the plugin root, where Claude Code looks
+        run: |
+          # A hooks file under .claude-plugin/ is silently never registered:
+          # `claude plugin details` reported "Hooks (0)" for eight releases
+          # while the SessionStart hook sat in .claude-plugin/hooks/hooks.json.
+          if [ -e .claude-plugin/hooks ]; then
+            echo "FAIL: .claude-plugin/hooks/ exists. Claude Code does not read it."
+            echo "      Move the file to hooks/hooks.json at the plugin root."
+            exit 1
+          fi
+          if [ -f hooks/hooks.json ]; then
+            jq empty hooks/hooks.json || { echo "FAIL: hooks/hooks.json is not valid JSON"; exit 1; }
+            # Every command a hook runs must exist in the repo. Read the list with
+            # a here-string, not a pipe: a `while` on the right of a pipe runs in a
+            # subshell, so its `exit 1` would leave the step green.
+            missing=0
+            targets=$(jq -r '.hooks[]?[]?.hooks[]?.command // empty' hooks/hooks.json |
+                      grep -oE '\$\{CLAUDE_PLUGIN_ROOT\}/[^"]+' | sed 's|${CLAUDE_PLUGIN_ROOT}/||')
+            while read -r f; do
+              [ -n "$f" ] || continue
+              if [ -f "$f" ]; then echo "  hook target present: $f"
+              else echo "FAIL: hook references missing file: $f"; missing=1; fi
+            done <<< "$targets"
+            test "$missing" -eq 0 || exit 1
+            echo "hooks/hooks.json OK"
+          else
+            echo "No hooks/hooks.json (fine — the plugin ships no hooks)"
+          fi
+
       - name: Schema check — plugin.json author/repository shapes
         run: |
           # author must be object, repository must be string (per Claude's official schema)

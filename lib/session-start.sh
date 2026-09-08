@@ -4,7 +4,9 @@
 # configured before any skill is invoked. Output goes to additionalContext
 # (visible to the model, not blocking).
 #
-# Usage: invoked automatically by Claude Code via .claude-plugin/hooks/hooks.json
+# Usage: invoked automatically by Claude Code via hooks/hooks.json at the plugin
+#        root. NOT .claude-plugin/hooks/ -- Claude Code does not look there, and a
+#        hook placed inside .claude-plugin/ is silently never registered.
 # Manual:  bash lib/session-start.sh
 #
 # Exits 0 always (advisory only — never block session).
