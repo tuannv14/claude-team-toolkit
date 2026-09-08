@@ -46,9 +46,18 @@ _ctt_section() {
     $0==s {found=1; next}
     /^\[/ {found=0}
     found && /=/ {
-      sub(/^[[:space:]]+/,"")
-      sub(/[[:space:]]+$/,"")
-      print
+      # Split at the FIRST "=" so a value may itself contain "=" (base64).
+      eq = index($0, "=")
+      k = substr($0, 1, eq - 1); v = substr($0, eq + 1)
+      sub(/^[[:space:]]+/, "", k); sub(/[[:space:]]+$/, "", k)
+      sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
+      # Strip a trailing inline comment (whitespace, then # or ;). Every
+      # documented block writes "read_only = true   # gate ..." and without
+      # this the value loaded as "true   # gate ...", so the gate compared
+      # false and every write went through. A value that itself STARTS with
+      # a # or a ; is a value, not a comment: default_channel = #general.
+      if (v !~ /^[#;]/) sub(/[[:space:]]+[#;].*$/, "", v)
+      print k "=" v
     }
   ' "$file"
 }
@@ -126,6 +135,15 @@ ctt_load_creds() {
   local profile
   profile=$(_ctt_resolve_profile "$service" "$explicit_profile")
 
+  # The name is interpolated into a grep pattern and an awk match below.
+  # Refuse anything outside the INI section charset, so a value arriving via
+  # LINEAR_PROFILE / active_profile / --profile cannot act as a regex.
+  case "$profile" in
+    ''|*[!A-Za-z0-9_-]*)
+      echo "Invalid profile name '$profile' (letters, digits, _ and - only)" >&2
+      return 1 ;;
+  esac
+
   # Verify section exists
   if ! grep -q "^\[$profile\][[:space:]]*$" "$cred_file"; then
     echo "Profile [$profile] not found in $cred_file" >&2
@@ -141,18 +159,20 @@ ctt_load_creds() {
   # wrong team. Same class of bug for sentry's project, heroku's default_app,
   # postgres's database/password, and the read_only / require_confirm flags.
   #
-  # Only variables this function set are cleared, tracked in _CTT_LOADED_VARS.
-  # Control variables the user or CI sets (CTT_NONINTERACTIVE) are never
-  # touched. _CTT_LOADED_VARS is deliberately NOT local — it has to survive
-  # between calls.
-  if [ -n "${_CTT_LOADED_VARS:-}" ]; then
-    local _ctt_v
-    # shellcheck disable=SC2086  # intentional word splitting over a name list
-    for _ctt_v in $_CTT_LOADED_VARS; do
-      unset "$_ctt_v"
-    done
-  fi
-  _CTT_LOADED_VARS=""
+  # Every CTT_* variable currently defined is cleared, EXCEPT the control
+  # variables that are not profile fields: CTT_NONINTERACTIVE (CI auto-deny)
+  # and CTT_HOME. The list of names comes from the shell itself (compgen), not
+  # from a tracking variable — a tracking variable would be state that a
+  # hostile environment could pre-set, e.g. _CTT_LOADED_VARS=CTT_NONINTERACTIVE
+  # planted in a project .env would make this function unset the CI safety
+  # gate. Reproduced before this was changed.
+  local _ctt_v
+  for _ctt_v in $(compgen -v CTT_ 2>/dev/null); do
+    case "$_ctt_v" in
+      CTT_NONINTERACTIVE|CTT_HOME) ;;
+      CTT_*) unset "$_ctt_v" ;;
+    esac
+  done
 
   # Export each field as CTT_<UPPERCASE>
   CTT_PROFILE="$profile"
@@ -176,11 +196,34 @@ ctt_load_creds() {
     case "$upper" in
       ''|[0-9]*|*[!A-Z0-9_]*) continue ;;
     esac
+    # A credentials file must not be able to set the control variables. A
+    # field "noninteractive = 0" would otherwise switch off the CI auto-deny,
+    # and "profile = x" would lie about which profile is loaded.
+    case "$upper" in
+      NONINTERACTIVE|PROFILE|HOME)
+        echo "ctt_load_creds: ignoring reserved field '$key' in [$profile]" >&2
+        continue ;;
+    esac
+
+    # Boolean gate flags: normalise every truthy spelling to the literal
+    # "true" that all skills compare against. Without this, read_only = yes
+    # (or 1, on, True) loaded as a non-"true" string and the gate failed OPEN.
+    case "$upper" in
+      READ_ONLY|REQUIRE_CONFIRM)
+        case "$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')" in
+          true|yes|1|on)     value="true" ;;
+          ''|false|no|0|off) value="false" ;;
+          *)
+            # Anything unrecognised fails CLOSED. A gate flag is the one
+            # place where a typo must not silently mean "off".
+            echo "ctt_load_creds: unrecognised $key = '$value' in [$profile]; treating as true" >&2
+            value="true" ;;
+        esac ;;
+    esac
 
     # Use printf -v (POSIX-ish) instead of eval for safety
     printf -v "CTT_${upper}" '%s' "$value"
     export "CTT_${upper}"
-    _CTT_LOADED_VARS="$_CTT_LOADED_VARS CTT_${upper}"
   done < <(_ctt_section "$cred_file" "$profile")
 }
 
@@ -189,6 +232,28 @@ ctt_load_creds() {
 ctt_save_profile() {
   local service="$1" profile="$2"; shift 2
   [ -z "$service" ] || [ -z "$profile" ] && { echo "ctt_save_profile: usage <service> <profile> <kv>..." >&2; return 2; }
+
+  # The profile name becomes an INI section header written with echo "[$p]".
+  # A name such as "x]<newline>[default" would write a second [default]
+  # section whose fields win on the next load. Same charset as session-start.sh.
+  case "$profile" in
+    *[!A-Za-z0-9_-]*)
+      echo "ctt_save_profile: invalid profile name '$profile' (letters, digits, _ and - only)" >&2
+      return 2 ;;
+  esac
+  local kv
+  for kv in "$@"; do
+    case "$kv" in
+      *$'\n'*|*$'\r'*)
+        echo "ctt_save_profile: newline in field '${kv%%=*}', refusing" >&2; return 2 ;;
+      *=*) ;;
+      *) echo "ctt_save_profile: field '$kv' is not key=value" >&2; return 2 ;;
+    esac
+    case "${kv%%=*}" in
+      ''|[0-9]*|*[!a-zA-Z0-9_-]*)
+        echo "ctt_save_profile: invalid field name '${kv%%=*}'" >&2; return 2 ;;
+    esac
+  done
 
   local dir cred_file tmp
   dir=$(_ctt_dir "$service")
@@ -280,6 +345,11 @@ ctt_remove_profile() {
 # Records timestamp, profile, action. NEVER records credentials.
 ctt_audit_log() {
   local service="$1" action="$2"
+  # One record per line, tab-separated. Strip the two characters that could
+  # forge a record boundary or a field boundary from inside a user-supplied
+  # id or team key. Reproduced: a team key containing "\n<date>\tlinear\t..."
+  # wrote a second, fake audit line.
+  action=$(printf '%s' "$action" | tr '\n\r\t' '   ')
   local audit_dir="$HOME/.claude-team-toolkit"
   local audit_file="$audit_dir/audit.log"
   mkdir -p "$audit_dir"

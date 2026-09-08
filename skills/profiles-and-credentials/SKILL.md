@@ -50,12 +50,26 @@ After `ctt_load_creds <service> [profile]`:
 - `CTT_PROFILE=<resolved>` (e.g., `default`)
 - `CTT_FIELD_A=<value>`, `CTT_FIELD_B=<secret>` (uppercased, hyphens → underscores)
 
-Each load **clears the fields the previous load set** (tracked in
-`_CTT_LOADED_VARS`) before populating the new ones. A field present in the old
-profile but absent from the new one is therefore unset, not inherited —
-without that, switching profiles would silently carry `default_team`, `org`,
-`project`, `default_app`, `database`, `read_only` or `require_confirm` across
-accounts. Control variables such as `CTT_NONINTERACTIVE` are never touched.
+Each load **clears every `CTT_*` variable** before populating the new ones,
+except the control variables `CTT_NONINTERACTIVE` and `CTT_HOME`. A field
+present in the old profile but absent from the new one is therefore unset, not
+inherited — without that, switching profiles would silently carry
+`default_team`, `org`, `project`, `default_app`, `database`, `read_only` or
+`require_confirm` across accounts, and across services. The names come from
+the shell (`compgen -v CTT_`), not from a tracking variable: a tracking
+variable is state a hostile environment can pre-set.
+
+Two boolean fields are normalised at load: `read_only` and `require_confirm`
+become the literal `true` for any of `true`, `yes`, `1`, `on` (case-insensitive)
+and `false` otherwise, so `[ "$CTT_READ_ONLY" = "true" ]` is the correct test in
+every skill and `read_only = yes` cannot fail open.
+
+`ctt_save_profile` refuses profile names outside `[A-Za-z0-9_-]`, field names
+outside `[a-zA-Z0-9_-]`, and any value containing a newline — each of those
+could otherwise write a second `[section]` into the INI file. `ctt_load_creds`
+applies the same name rule to the resolved profile, because the name is used in
+a grep pattern. `ctt_audit_log` replaces newlines and tabs in the action text so
+an id or team key cannot forge a second audit record.
 
 Consequence for skill authors: read every field as `${CTT_FIELD:-}` and treat
 unset as "not configured on this profile". Never assume a field survives a

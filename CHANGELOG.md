@@ -152,6 +152,79 @@ one asserting `CTT_NONINTERACTIVE` survives.
 Skill authors: read fields as `${CTT_FIELD:-}` and treat unset as "not set on
 this profile". Documented in the profiles-and-credentials reference skill.
 
+### Fixed — inline comments silently disabled every gate flag (all skills)
+
+The INI parser kept a trailing `# comment` as part of the value, so the
+documented line
+
+    read_only = true            # refuse every write verb on this profile
+
+loaded as `true            # refuse every write verb...`, the
+`[ "$CTT_READ_ONLY" = "true" ]` test failed, and the gate was a no-op. The same
+applied to `require_confirm` in the documented blocks of heroku, shopify, slack,
+fastlane and k6, and to postgres's `read_only`: nine shipped examples, all
+failing open. Reproduced with the exact block from the linear skill.
+
+`_ctt_section` now splits at the first `=` (so a value may contain `=`) and
+strips a trailing whitespace-delimited `#`/`;` comment, while a value that
+*starts* with `#` stays intact — slack's `default_channel = #general`. An
+unrecognised gate value now fails **closed** with a warning instead of being
+treated as off.
+
+### Security — findings from an adversarial review of these commits
+
+An adversarial pass (six attack surfaces, each finding re-run by two
+independent refuters) produced these changes. Nineteen other candidate findings
+were refuted and are not listed.
+
+- **API key no longer passed in argv.** `linear_gql` sent
+  `-H "Authorization: $CTT_API_KEY"`, and argv is readable by other local users
+  (`/proc/<pid>/cmdline`, the Windows process list). The key now goes to curl on
+  stdin via `-K -`.
+- **Scratch files moved out of shared `/tmp`.** Fixed names such as `p.json` and
+  `r.json` under `$TMPDIR` let another local account pre-create or read them.
+  They now live in `~/.claude-team-toolkit/tmp/linear/`, mode 700, umask 077.
+- **Text no longer travels through bash.** The comment recipe spliced the body
+  into a `<<'BODY'` heredoc, so a line equal to `BODY` in text that often came
+  *back from the API* would end the heredoc and execute the rest as shell. The
+  title, description, comment body and search term are now written to files with
+  the Write tool before the verb runs.
+- **Listings are `@tsv`-escaped.** `jq -r '"\(.identifier)	..."'` emitted raw
+  API strings, so a newline in a title forged a row indistinguishable from a real
+  one — enough to steer a later `update`/`archive` onto the wrong issue id.
+- **`lin_id` fails closed.** It passed through anything that did not match, so a
+  crafted argument could pad the confirmation prompt and the audit line. It now
+  requires `KEY-123` and refuses otherwise.
+- **Credentials files cannot set control variables.** A field named
+  `noninteractive` or `profile` overwrote `CTT_NONINTERACTIVE` / `CTT_PROFILE`;
+  those names are now reserved and ignored with a warning.
+- **The cross-profile clearing no longer trusts a tracking variable.** A
+  pre-set `_CTT_LOADED_VARS=CTT_NONINTERACTIVE` made the next load unset the CI
+  auto-deny gate. The list now comes from the shell (`compgen -v CTT_`), with
+  `CTT_NONINTERACTIVE` and `CTT_HOME` excluded.
+- **Profile names and field values are validated.** A name containing `]` and a
+  newline could write a second `[default]` INI section that wins on the next
+  load; the resolved name also reached a grep pattern. Both are now restricted
+  to `[A-Za-z0-9_-]`, and newlines in values are refused.
+- **Audit records cannot be forged.** `ctt_audit_log` wrote the action verbatim,
+  so a newline in an id or team key appended a second, fake record. Newlines and
+  tabs are now stripped.
+- **CI leak scan covers `*.example`** and no longer whitelists lines containing
+  `your-`, which could have hidden a real key on the same line.
+
+Six lib regression tests added (13 total): env-poisoned clearing, gate-flag
+spellings, inline comments, reserved field names, INI-section injection, and
+audit forgery.
+
+### Changed — skill trimmed for token cost
+
+`SKILL.md` body and `recipes.md` were 33,021 characters together, roughly three
+times the heroku or slack skill. Rationale moved to this changelog, verbs share
+a `lin_run` helper, and the prose was cut to what the model needs at runtime:
+22,634 characters, about 31% smaller, with every safety control kept. All 17
+GraphQL documents re-validated against the live schema and all bash blocks
+syntax-checked after the rewrite.
+
 ### Security
 
 - Profiles accept **`read_only = true`**, which refuses every write verb locally
