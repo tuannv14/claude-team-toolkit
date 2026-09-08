@@ -5,7 +5,7 @@
 [![Version](https://img.shields.io/badge/version-0.12.2-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
 [![Skills](https://img.shields.io/badge/skills-16-orange.svg)](#whats-included)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-7a3aff.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
-[![ClaudePluginHub](https://img.shields.io/badge/ClaudePluginHub-listed-success.svg)](https://www.claudepluginhub.com/plugins/tuannv14-claude-team-toolkit)
+[![Listed on ClaudePluginHub](https://www.claudepluginhub.com/badge/tuannv14-claude-team-toolkit)](https://www.claudepluginhub.com/plugins/tuannv14-claude-team-toolkit?ref=badge)
 
 > Team-ready Claude Code skill pack — for **dev, QA, QC, testers, and team leads**.
 

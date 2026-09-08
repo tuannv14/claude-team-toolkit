@@ -7,6 +7,19 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Fixed
+
+- GitHub labelled this repository **Python**. The three one-off benchmark
+  scripts under `scripts/` outweighed every shell script in the tree by 7
+  bytes, and every directory that reads GitHub's language field —
+  ClaudePluginHub included — repeated the label. `.gitattributes` now marks
+  them `linguist-detectable=false`; nothing else about them changes.
+
+### Changed
+
+- README carries the official ClaudePluginHub badge instead of a hand-rolled
+  shields.io lookalike, so badge referrals register against the listing.
+
 ## [0.12.2] - 2026-09-08
 
 ### Fixed — the SessionStart hook had never run

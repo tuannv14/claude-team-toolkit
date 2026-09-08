@@ -1,0 +1,8 @@
+# Repository language stats.
+#
+# This is a Bash skill pack. The only Python in the tree is one-off benchmark
+# tooling under scripts/ that no skill sources and that never ships to a user.
+# It was outweighing Shell by 7 bytes, so GitHub — and every directory that
+# reads GitHub's language field, ClaudePluginHub included — labelled the repo
+# "Python". Keep it out of the breakdown.
+scripts/*.py linguist-detectable=false
