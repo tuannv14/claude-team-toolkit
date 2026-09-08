@@ -198,7 +198,11 @@ jobs:
           # (no pipeline here: the Actions shell runs with -o pipefail, and grep -c exits 1 on zero matches)
           if grep -q '^\[default\]' /tmp/ctt-test/.leak/credentials; then echo "FAIL test10: a [default] section was written"; exit 1; fi
 
-          # Test 11: audit log cannot be given a forged second record
+          # Test 11: audit log cannot be given a forged second record.
+          # Truncate first: ctt_audit_log appends, so without this the test only
+          # passes on a pristine runner and fails on a second local run.
+          mkdir -p /tmp/ctt-test/.claude-team-toolkit
+          : > /tmp/ctt-test/.claude-team-toolkit/audit.log
           ctt_audit_log leak "created X in team $(printf 'ENG\n1970-01-01T00:00:00Z\tleak\tprod\tarchived Y')"
           test "$(wc -l < /tmp/ctt-test/.claude-team-toolkit/audit.log)" = "1" || { echo "FAIL test11: audit line forged"; exit 1; }
 
@@ -234,7 +238,26 @@ jobs:
           ctt_load_creds leak u 2>/dev/null
           test "$CTT_READ_ONLY" = "true" || { echo "FAIL test13: unrecognised read_only fell open: '$CTT_READ_ONLY'"; exit 1; }
 
-          echo "lib/credentials.sh: 13/13 tests pass"
+          # Test 14: the documented short alias resolves, not just the derived
+          # <SERVICE>_PROFILE name. PG_PROFILE is what the postgres skill and the
+          # README tell users to put in a project .env; it was silently ignored,
+          # so the load fell through to [default] -- the wrong database.
+          mkdir -p /tmp/ctt-test/.postgres
+          cat > /tmp/ctt-test/.postgres/credentials <<'EOF'
+          [default]
+          host = localhost
+          [staging]
+          host = stg.example.com
+          EOF
+          chmod 600 /tmp/ctt-test/.postgres/credentials
+          PG_PROFILE=staging ctt_load_creds postgres
+          test "$CTT_PROFILE" = "staging" || { echo "FAIL test14: PG_PROFILE ignored, got '$CTT_PROFILE'"; exit 1; }
+          POSTGRES_PROFILE=staging ctt_load_creds postgres
+          test "$CTT_PROFILE" = "staging" || { echo "FAIL test14: POSTGRES_PROFILE broke"; exit 1; }
+          AZDO_PROFILE=staging ctt_load_creds postgres
+          test "$CTT_PROFILE" = "default" || { echo "FAIL test14: another service's alias leaked in"; exit 1; }
+
+          echo "lib/credentials.sh: 14/14 tests pass"
 
   no-credential-leak:
     runs-on: ubuntu-latest

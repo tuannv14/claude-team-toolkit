@@ -101,6 +101,12 @@ _ctt_resolve_profile() {
     case "$service" in
       azure-devops) from_env="${AZDO_PROFILE:-}" ;;
       bundler-audit) from_env="${BA_PROFILE:-}" ;;
+      # PG_PROFILE is the name the postgres skill and the README document, and
+      # the only one users are told to put in a project .env. Without this the
+      # derived POSTGRES_PROFILE was the only working name, so PG_PROFILE was
+      # silently ignored and the load fell through to [default] -- on a
+      # database skill, quietly the wrong database.
+      postgres) from_env="${PG_PROFILE:-}" ;;
       react-native) from_env="${RN_PROFILE:-}" ;;
       xlsx-testcases) from_env="${XTC_PROFILE:-}" ;;
     esac

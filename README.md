@@ -75,7 +75,11 @@ bash lib/install.sh
 This:
 1. Copies shared helpers to `~/.claude-team-toolkit/lib/` (every skill sources from there).
 2. Verifies dependencies: `curl`, `jq`, `base64`, `awk`, `sed`.
-3. Creates audit log directory `~/.claude-team-toolkit/audit.log` (mode 600).
+3. Creates the audit log `~/.claude-team-toolkit/audit.log` (mode 600).
+4. Applies a skill profile if you pass one. `bash lib/install.sh --list-profiles`
+   shows the curated subsets (`mobile-team`, `backend-ops`, `qa-team`, `pm`,
+   `ruby-dev`, `devops`, `ecommerce`); `--profile <name>` disables the rest and
+   `--reset-profile` re-enables everything. No flag means all skills stay active.
 
 ---
 
@@ -147,11 +151,11 @@ clients, dev/staging/prod environments — each isolated.
 | **heroku** | `~/.heroku/credentials` | `api_key`, `default_app`, `require_confirm` |
 | **sentry** | `~/.sentry/credentials` | `api_url`, `auth_token`, `org`, `project` |
 | **slack** | `~/.slack/credentials` | `bot_token`, `default_channel`, `require_confirm` |
-| **firebase** | `~/.firebase/credentials` | `project_id`, `service_account`, `ios_app_id`, `android_app_id` |
+| **firebase** | `~/.firebase/credentials` | `project_id`, `service_account`, `ios_app_id`, `android_app_id`, `require_confirm` |
 | **shopify** | `~/.shopify/credentials` | `shop_domain`, `access_token`, `api_version`, `require_confirm` (supports multi-store **and** multi-app on the same store via separate profiles) |
 | **postgres** | `~/.postgres/credentials` | `host`, `port`, `database`, `user`, `password`, `sslmode`, `read_only`, `require_confirm` |
 | **maestro** | `~/.maestro/profiles.ini` | `platform`, `device`, `app_id`, `flows_dir`, `cloud_api_key` |
-| **fastlane** | `~/.fastlane/credentials` | `appstore_api_*`, `google_play_json_key`, `match_*` |
+| **fastlane** | `~/.fastlane/credentials` | `appstore_api_*`, `google_play_json_key`, `match_*`, `project_path`, `require_confirm` |
 | **k6** | `~/.k6/credentials` | `base_url`, `auth_header`, `vus`, `duration`, `require_confirm` |
 | **rspec** | `~/.rspec/credentials` | `project_path`, `rails_env`, `workers`, `seed_strategy` |
 
@@ -448,9 +452,9 @@ All scripts use the public `tiktoken` library. No API key needed.
 - Set `<SERVICE>_PROFILE` env var once per shell — not `--profile foo` per call.
 - Use `profile use <name>` to set a persistent default.
 - Don't run `configure` repeatedly — one-time per profile.
-- **Fork and remove unused skills** — each skill folder you delete drops
-  ~70 always-loaded tokens. If you only need 5 skills, this halves the
-  base cost.
+- **Fork and remove unused skills**, or use an install profile
+  (`bash lib/install.sh --profile qa-team`) — each skill you drop saves roughly
+  65 always-loaded tokens.
 
 ---
 
@@ -562,7 +566,7 @@ security checklist, and trim policy.
 
 Quick rules:
 - New skills must source `lib/credentials.sh` (no duplicated helpers)
-- Frontmatter `description` ≤ 40 words
+- Frontmatter `description` ≤ 40 words (CI fails above 70, so 40 is the policy and 70 the hard stop)
 - Mutating ops must use `ctt_confirm` + `ctt_audit_log`
 - No real credentials, internal hostnames, or project names anywhere
 

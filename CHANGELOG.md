@@ -152,6 +152,39 @@ one asserting `CTT_NONINTERACTIVE` survives.
 Skill authors: read fields as `${CTT_FIELD:-}` and treat unset as "not set on
 this profile". Documented in the profiles-and-credentials reference skill.
 
+### Fixed — `PG_PROFILE` was silently ignored
+
+The postgres skill's own frontmatter and body document `PG_PROFILE`, and the
+README tells users to put `PG_PROFILE=staging-readonly` in a project `.env`.
+`_ctt_resolve_profile` only derived `POSTGRES_PROFILE` from the service name and
+had no `postgres` alias, so `PG_PROFILE` did nothing and the load fell through to
+`[default]` — on a database skill, quietly the wrong database, with no warning.
+
+Added the alias, plus a regression test asserting that `PG_PROFILE` resolves,
+that `POSTGRES_PROFILE` still resolves, and that another service's alias does not
+leak in.
+
+Test 11 was also made idempotent: it asserts the audit log holds exactly one
+line but `ctt_audit_log` appends, so it passed only on a pristine runner and
+failed on a second local run.
+
+### Fixed — README claims that no longer matched the repo
+
+Found by an audit of every checkable claim in the file.
+
+- `bash lib/install.sh` was described as doing three things; it has four steps,
+  and the install-profile step was undocumented there.
+- The multi-account table omitted `require_confirm` for firebase and fastlane,
+  and `project_path` for fastlane.
+- "Frontmatter `description` ≤ 40 words" is the policy, but CI fails at 70. Both
+  numbers are now stated.
+- "each skill folder you delete drops ~70 always-loaded tokens" measured at ~65.
+
+Verified as still correct and left alone: every example, reference and script
+path the README names exists; the skill counts (16 user-invocable plus one
+shared reference); the `.gitignore` claims; the body-table average; every verb
+in the quick-start block; and the Shopify API version.
+
 ### Fixed — the documented placeholder was a validly-shaped Linear key
 
 `lin_api_` followed by 40 `x` characters matches Linear's real key pattern,
