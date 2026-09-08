@@ -7,6 +7,7 @@ Sanitized templates for setting up `claude-team-toolkit` skills.
 | `.testcase-schema.example.yml` | Column mapping for `/xlsx-testcases` — copy to your xlsx folder |
 | `.env.example` | Per-call profile switch via env vars |
 | `trello-credentials.example` | Multi-account Trello creds template |
+| `linear-credentials.example` | Multi-workspace Linear creds template |
 | `azure-devops-credentials.example` | ADO Services + Server multi-org template |
 
 ## How to use

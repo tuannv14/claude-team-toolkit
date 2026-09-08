@@ -10,7 +10,7 @@
 #      → bash lib/install.sh --list-profiles
 #
 # Usage:
-#   bash lib/install.sh                          # full install (all 16 skills active)
+#   bash lib/install.sh                          # full install (all 17 skills active)
 #   bash lib/install.sh --profile <name>         # install + enable only profile's skills
 #   bash lib/install.sh --list-profiles          # show available profiles + exit
 #   bash lib/install.sh --reset-profile          # re-enable all skills (clear --profile)
@@ -174,7 +174,7 @@ if [ -z "$PROFILE" ] || [ "$ENABLED_SKILLS" = "*" ]; then
   if [ "$restored" -gt 0 ]; then
     echo "  → restored $restored previously-disabled skills"
   fi
-  echo "  → all 16 skills active (no profile filter)"
+  echo "  → all 17 skills active (no profile filter)"
 else
   # Disable every skill not in ENABLED_SKILLS by renaming SKILL.md → SKILL.md.disabled
   # (Claude Code's plugin loader scans for SKILL.md, so .disabled files are ignored.)

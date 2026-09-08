@@ -7,6 +7,75 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-08
+
+### Added
+
+- **`linear` skill** (`/linear`) — Linear issue tracking over the GraphQL API,
+  the 16th integration. `SKILL.md` + `recipes.md` (loaded on demand), matching
+  the heroku/slack reference-file shape.
+  - Read verbs: `me`, `teams`, `states`, `issues`, `issue`, `search`,
+    `projects`, `cycles`.
+  - Write verbs: `create`, `comment`, `update`, `archive`. There is no
+    `delete` — `issueArchive` is reversible, `issueDelete` is not.
+  - Multi-workspace via `~/.linear/credentials` (`api_key`, `default_team`,
+    `require_confirm`) and `LINEAR_PROFILE`, same resolution order as every
+    other skill.
+  - Triggers on the word Linear, a `linear.app/*/issue/` URL, or a bare issue
+    key such as `ENG-123`.
+- `examples/linear-credentials.example` — multi-workspace template.
+
+### Notes on the Linear API (verified 2026-09-08)
+
+Three behaviours differ from the other REST-based skills and are documented in
+the skill body because they cost time otherwise:
+
+- Personal API keys use `Authorization: <key>` with **no `Bearer` prefix**.
+  `Bearer` is OAuth-only and a personal key sent that way is rejected.
+- GraphQL returns **HTTP 200 with an `errors` array** for most failures, so the
+  status code proves nothing. Every recipe checks `.errors` before `.data`.
+- Rate limiting returns **HTTP 400** with error code `RATELIMITED`, not 429.
+  Limits with an API key: 2,500 requests/hour and 3,000,000 complexity
+  points/hour per user, 10,000 points maximum for a single query.
+
+All 17 GraphQL documents in `recipes.md` were validated against the live schema
+on 2026-09-08. Linear runs document validation **before** authentication, so an
+unauthenticated request returns `AUTHENTICATION_ERROR` for a valid document and
+`GRAPHQL_VALIDATION_FAILED` for a broken one — no key needed. That check caught
+two mistakes before release: `Project` has no `state` field (it is
+`status { name }`), and projects are scoped to a team through `accessibleTeams`,
+not a `team` field. Introspection is likewise open, so `recipes.md` documents
+how to check a doubtful field name.
+
+A personal API key is unscoped — it carries the full permissions of the user
+who created it, like a Trello token. The skill masks it as `****<last4>` and
+the credentials file stays mode 600.
+
+### Changed
+
+- Every write carries its text as a **GraphQL variable** built with
+  `jq -a --rawfile` and sent via `--data-binary @file`, never through argv.
+  Same defence as trello v0.11.1 against the Windows Git Bash ANSI-codepage
+  conversion that corrupts non-ASCII text before curl sees it. Verified: a
+  title with Vietnamese diacritics and an em dash produces a payload with zero
+  non-ASCII bytes and round-trips byte-identical.
+- `pm` install profile now includes `linear` alongside trello, slack and
+  azure-devops.
+- SessionStart hook probes `~/.linear/credentials` and reports its profiles.
+- CI credential-leak scan covers the `lin_api_` key pattern.
+- README: skills badge 15 → 16, service table, multi-account table,
+  `LINEAR_PROFILE` env var, auto-routing table, credential-revocation list,
+  architecture tree. Linear removed from the roadmap.
+
+### Token cost
+
+Always-loaded frontmatter goes from ~1,005 to **~1,070 tokens** for 16 skills.
+The `linear` line is scaled by character count at 3.66 chars/token, not
+measured — `scripts/benchmark_tokens.py` needs network access to fetch the
+tiktoken BPE file and could not run in this environment. The `linear` body
+(~1,430 tokens, same method) loads only when the skill is invoked; `recipes.md`
+loads only when a specific verb is used.
+
 ## [0.11.1] - 2026-08-18
 
 ### Fixed

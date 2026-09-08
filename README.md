@@ -2,14 +2,14 @@
 
 [![CI](https://github.com/tuannv14/claude-team-toolkit/actions/workflows/lint.yml/badge.svg)](https://github.com/tuannv14/claude-team-toolkit/actions/workflows/lint.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.11.0-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
-[![Skills](https://img.shields.io/badge/skills-15-orange.svg)](#whats-included)
+[![Version](https://img.shields.io/badge/version-0.12.0-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
+[![Skills](https://img.shields.io/badge/skills-16-orange.svg)](#whats-included)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-7a3aff.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![ClaudePluginHub](https://img.shields.io/badge/ClaudePluginHub-listed-success.svg)](https://www.claudepluginhub.com/plugins/tuannv14-claude-team-toolkit)
 
 > Team-ready Claude Code skill pack — for **dev, QA, QC, testers, and team leads**.
 
-A Claude Code plugin bundling 15 integration skills your whole team can install
+A Claude Code plugin bundling 16 integration skills your whole team can install
 once and start using immediately. All skills support **multiple accounts** via
 INI profile files (AWS-style), so personal/work/client accounts stay isolated
 and switchable on demand.
@@ -21,6 +21,7 @@ and switchable on demand.
 | Skill | Slash command | What it does |
 |---|---|---|
 | **trello** | `/trello` | Boards, lists, cards, comments via Trello REST API |
+| **linear** | `/linear` | Issues, teams, projects, cycles via Linear GraphQL API |
 | **azure-devops** | `/azure-devops` | Repos, PRs, work items, pipelines (Services + self-hosted Server) |
 | **heroku** | `/heroku` | Apps, dynos, releases, config vars, logs, pipelines (Platform API v3) |
 | **sentry** | `/sentry` | Issues, events, releases (Sentry SaaS + self-hosted) |
@@ -86,7 +87,7 @@ Most skills need `curl` + `jq`. Some need extras:
 
 | Skill | Extra dependency |
 |---|---|
-| heroku, sentry, slack, trello, azure-devops | `curl`, `jq` |
+| heroku, sentry, slack, trello, linear, azure-devops | `curl`, `jq` |
 | firebase | `firebase-tools` (`npm install -g firebase-tools`) |
 | postgres | `psql` (PostgreSQL client) |
 | rspec, rails-security | Ruby project with bundler (gems: `brakeman`, `bundler-audit`) |
@@ -120,6 +121,7 @@ Each `configure` is interactive and:
 /heroku scale my-app web=3
 /sentry issues --query "is:unresolved age:-24h"
 /slack post "#deploys" "v2.1.0 shipped"
+/linear issue ENG-123
 /postgres query "SELECT count(*) FROM users"
 /rspec run spec/models/user_spec.rb
 /rails-security audit
@@ -140,6 +142,7 @@ clients, dev/staging/prod environments — each isolated.
 | Skill | Credentials file | Per-profile fields |
 |---|---|---|
 | **trello** | `~/.trello/credentials` | `key`, `token` |
+| **linear** | `~/.linear/credentials` | `api_key`, `default_team`, `require_confirm` |
 | **azure-devops** | `~/.azure-devops/credentials` | `org_url`, `pat`, `api_version`, `project`, `insecure` |
 | **heroku** | `~/.heroku/credentials` | `api_key`, `default_app`, `require_confirm` |
 | **sentry** | `~/.sentry/credentials` | `api_url`, `auth_token`, `org`, `project` |
@@ -178,8 +181,8 @@ TRELLO_PROFILE=work /trello cards <listId>     # via env var (per-shell session)
 /trello boards                                 # uses active profile or [default]
 ```
 
-Same dispatch commands across **all 12 multi-account skills**. Replace
-`trello` with `azure-devops`, `heroku`, `sentry`, `slack`, `firebase`,
+Same dispatch commands across **all 13 multi-account skills**. Replace
+`trello` with `linear`, `azure-devops`, `heroku`, `sentry`, `slack`, `firebase`,
 `shopify`, `postgres`, `k6`, `maestro`, `fastlane`, or `rspec`.
 
 ### Profile resolution priority
@@ -190,7 +193,7 @@ When you call a skill, the active profile is resolved in this order
 1. **`--profile <name>` flag** — highest priority, per-call override
 2. **`<SERVICE>_PROFILE` env var** — per-shell session
    - `TRELLO_PROFILE`, `HEROKU_PROFILE`, `SENTRY_PROFILE`, `SLACK_PROFILE`,
-     `FIREBASE_PROFILE`, `SHOPIFY_PROFILE`, `PG_PROFILE`, `K6_PROFILE`,
+     `LINEAR_PROFILE`, `FIREBASE_PROFILE`, `SHOPIFY_PROFILE`, `PG_PROFILE`, `K6_PROFILE`,
      `MAESTRO_PROFILE`, `FASTLANE_PROFILE`, `RSPEC_PROFILE`
    - `azure-devops` accepts both `AZDO_PROFILE` and `AZURE_DEVOPS_PROFILE`
 3. **`~/.<service>/active_profile`** — written by `profile use`, persists across sessions
@@ -199,12 +202,15 @@ When you call a skill, the active profile is resolved in this order
 ### How Claude auto-detects which skill to use
 
 Claude reads each skill's frontmatter `description` at session start
-(~1,005 tokens total for all 15 skills, measured with tiktoken cl100k_base)
+(~1,070 tokens total for all 16 skills — the 15-skill figure of 1,005 was
+measured with tiktoken cl100k_base; the `linear` line is scaled by character
+count at 3.66 chars/token)
 to route incoming requests:
 
 | You say | Claude routes to |
 |---|---|
 | "fetch this trello card" / paste `https://trello.com/c/...` URL | `/trello card <id>` |
+| "what are my linear issues?" / paste a `linear.app/*/issue/` URL / say `ENG-123` | `/linear issues` or `/linear issue ENG-123` |
 | "list azure devops PRs" / mention an ADO repo | `/azure-devops pr-list` |
 | "scale my heroku app" / "promote staging to prod" | `/heroku scale` or `/heroku promote` |
 | "any sentry errors today?" | `/sentry issues` |
@@ -287,6 +293,8 @@ host. To use it for **your** project:
 Revoke immediately at the service's token management page:
 
 - **Trello:** https://trello.com/<username>/account → Power-Ups and Integrations
+- **Linear:** Settings → Security & access → Personal API keys
+  (`https://linear.app/settings/account/security`)
 - **Azure DevOps:** `https://<org-or-server>/_usersSettings/tokens`
 - **Heroku:** Account Settings → Applications → Authorizations
 - **Sentry:** User Settings → Auth Tokens
@@ -320,7 +328,9 @@ uncertainty.
 
 ### Costs (measured)
 
-**Always-loaded** every session (15 frontmatter descriptions): **~1,005 tokens**.
+**Always-loaded** every session (16 frontmatter descriptions): **~1,070 tokens**
+(1,005 measured for 15 skills, plus ~64 scaled by character count for `linear` —
+re-run `scripts/benchmark_tokens.py` to confirm).
 You pay this even if you never invoke a toolkit skill.
 
 **Per skill body** (loaded only when that skill is invoked):
@@ -334,7 +344,11 @@ You pay this even if you never invoke a toolkit skill.
 | k6 | 1,586 | | react-native | 1,154 |
 | rails-security | 1,562 | | sentry | 1,366 |
 | postgres | 1,529 | | firebase | 1,314 |
-| fastlane | 1,123 | | **Average** | **1,471** |
+| fastlane | 1,123 | | linear | ~1,430* |
+| | | | **Average** | **1,468** |
+
+`*` `linear` is char-scaled, not tiktoken-measured — `benchmark_tokens.py` needs
+network access to fetch the BPE file and could not run in this environment.
 
 ### Honest comparison vs ad-hoc Claude
 
@@ -386,7 +400,7 @@ This is the real value proposition, not token savings:
 
 | Feature | Why it matters |
 |---|---|
-| **Multi-account profiles** | One pattern across 12 services. No more "which key for which client?" |
+| **Multi-account profiles** | One pattern across 13 services. No more "which key for which client?" |
 | **Audit logging** | `~/.claude-team-toolkit/audit.log` records every mutation (timestamp + service + profile + action). Never logs credentials. Compliance/debug ready. |
 | **Safety gates** | `ctt_confirm` typed confirmation for destructive ops (rollback, destroy, drop, kill, scale). Profile-level `require_confirm=true` for prod. |
 | **Standardization** | Same dispatch pattern across all skills → predictable for new team members. |
@@ -438,8 +452,8 @@ All scripts use the public `tiktoken` library. No API key needed.
 
 Each MCP server's tool schemas cost roughly **~500 tokens per tool** loaded into
 every Task tool invocation. A single 10-tool MCP server eats more context than
-this entire toolkit's always-loaded skill descriptions combined (~1,100 tokens
-for all 16 skills).
+this entire toolkit's always-loaded skill descriptions combined (~1,170 tokens
+for all 17 skills).
 
 **claude-team-toolkit ships zero MCP dependencies** — pure bash plumbing
 (curl + jq + lib/credentials.sh). You pay only:
@@ -470,6 +484,7 @@ claude-team-toolkit/
 │   └── install.sh                   # one-time setup (run once after install)
 └── skills/
     ├── trello/SKILL.md
+    ├── linear/SKILL.md + recipes.md
     ├── azure-devops/SKILL.md
     ├── heroku/SKILL.md
     ├── sentry/SKILL.md
@@ -518,7 +533,6 @@ PRs welcome. Planned skills:
 
 - [ ] Jira — issues, sprints, comments
 - [ ] GitLab — MRs, issues, pipelines
-- [ ] Linear — issues, cycles
 - [ ] Notion — pages, databases
 - [ ] Datadog — metrics, monitors
 - [ ] PagerDuty — incidents, on-call
@@ -541,6 +555,7 @@ Quick rules:
 
 Sanitized templates in [examples/](examples/) — copy to your config locations:
 - `examples/trello-credentials.example` → `~/.trello/credentials`
+- `examples/linear-credentials.example` → `~/.linear/credentials`
 - `examples/azure-devops-credentials.example` → `~/.azure-devops/credentials`
 - `examples/.testcase-schema.example.yml` → your xlsx folder
 - `examples/.env.example` → your project root

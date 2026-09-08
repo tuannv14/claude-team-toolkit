@@ -5,7 +5,7 @@
   "shared": ["profiles-and-credentials"],
   "profiles": {
     "full": {
-      "description": "All 15 service-integration skills + shared reference. Default if --profile is omitted.",
+      "description": "All 16 service-integration skills + shared reference. Default if --profile is omitted.",
       "skills": ["*"]
     },
     "mobile-team": {
@@ -21,8 +21,8 @@
       "skills": ["rspec", "k6", "maestro", "xlsx-testcases", "rails-security"]
     },
     "pm": {
-      "description": "Project managers / team leads: Trello cards, Slack updates, Azure DevOps work items + PRs.",
-      "skills": ["trello", "slack", "azure-devops"]
+      "description": "Project managers / team leads: Trello and Linear issues, Slack updates, Azure DevOps work items + PRs.",
+      "skills": ["trello", "linear", "slack", "azure-devops"]
     },
     "ruby-dev": {
       "description": "Ruby/Rails developers: RSpec, Rails security, Postgres, Heroku deploy, Sentry monitoring.",
