@@ -100,7 +100,6 @@ _ctt_resolve_profile() {
   if [ -z "$from_env" ]; then
     case "$service" in
       azure-devops) from_env="${AZDO_PROFILE:-}" ;;
-      bundler-audit) from_env="${BA_PROFILE:-}" ;;
       # PG_PROFILE is the name the postgres skill and the README document, and
       # the only one users are told to put in a project .env. Without this the
       # derived POSTGRES_PROFILE was the only working name, so PG_PROFILE was

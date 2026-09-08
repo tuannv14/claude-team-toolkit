@@ -152,6 +152,22 @@ one asserting `CTT_NONINTERACTIVE` survives.
 Skill authors: read fields as `${CTT_FIELD:-}` and treat unset as "not set on
 this profile". Documented in the profiles-and-credentials reference skill.
 
+### Removed — dead `bundler-audit` profile alias
+
+The `bundler-audit` skill was removed in v0.4.0 when redundant skills were
+trimmed, but its `BA_PROFILE` alias stayed in `_ctt_resolve_profile` and its
+documentation line stayed in `examples/.env.example` — dead for eight releases.
+Both are gone.
+
+A new lib test asserts that every short alias names a skill directory that still
+exists, so this kind of rot fails CI instead of accumulating.
+
+`examples/.env.example` also gained the profile variables added since it was
+written (`LINEAR_PROFILE`, `SHOPIFY_PROFILE`, `MAESTRO_PROFILE`,
+`FASTLANE_PROFILE`, `RSPEC_PROFILE`, `PG_PROFILE`), and now says plainly that
+`RN_PROFILE` and `XTC_PROFILE` are accepted but change nothing, because
+react-native and xlsx-testcases hold no credentials of their own.
+
 ### Fixed — `PG_PROFILE` was silently ignored
 
 The postgres skill's own frontmatter and body document `PG_PROFILE`, and the

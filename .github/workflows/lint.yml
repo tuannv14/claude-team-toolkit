@@ -257,7 +257,19 @@ jobs:
           AZDO_PROFILE=staging ctt_load_creds postgres
           test "$CTT_PROFILE" = "default" || { echo "FAIL test14: another service's alias leaked in"; exit 1; }
 
-          echo "lib/credentials.sh: 14/14 tests pass"
+          # Test 15: every short alias must name a skill that still exists.
+          # The bundler-audit skill was removed in v0.4.0 but its BA_PROFILE
+          # alias sat in the resolver for eight releases, dead the whole time.
+          bad=0
+          for svc in $(grep -oE '^\s+[a-z0-9-]+\) from_env=' lib/credentials.sh | tr -d ' )' | sed 's/from_env=//'); do
+            if [ ! -d "$GITHUB_WORKSPACE/skills/$svc" ]; then
+              echo "FAIL test15: alias for '$svc' but skills/$svc does not exist"
+              bad=1
+            fi
+          done
+          test "$bad" -eq 0 || exit 1
+
+          echo "lib/credentials.sh: 15/15 tests pass"
 
   no-credential-leak:
     runs-on: ubuntu-latest
