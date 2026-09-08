@@ -266,6 +266,33 @@ jobs:
           [ "$found" -eq 0 ] && echo "No real credentials detected"
           exit $found
 
+      - name: Placeholders must not be shaped like real keys
+        run: |
+          # The scan above excludes lines containing 'xxx', so an xxx-filled
+          # placeholder that still MATCHES a vendor's token pattern slips past
+          # it -- and GitHub push protection then rejects the push. That
+          # happened with lin_api_ + 40 x's: 'x' is in Linear's key charset,
+          # so the placeholder was a valid-shaped Linear key. Break
+          # placeholders with a character outside the charset instead,
+          # e.g. lin_api_YOUR-KEY-HERE.
+          set +e
+          found=0
+          for spec in \
+            'lin_api_[A-Za-z0-9]{40,}:Linear API key' \
+            'ATTA[A-Za-z0-9]{60,}:Trello token'; do
+            pat="${spec%%:*}"; name="${spec#*:}"
+            hits=$(grep -rEn "$pat" --include='*.md' --include='*.json' --include='*.sh' \
+                     --include='*.yml' --include='*.example' . 2>/dev/null)
+            if [ -n "$hits" ]; then
+              echo "FAIL: text shaped like a $name (real or placeholder):"
+              echo "$hits"
+              echo "  If it is a placeholder, break the charset: lin_api_YOUR-KEY-HERE"
+              found=1
+            fi
+          done
+          [ "$found" -eq 0 ] && echo "No key-shaped placeholders"
+          exit $found
+
       - name: Verify .gitignore blocks key/cert/cred patterns
         run: |
           for f in test.key test.pem test.p12 id_rsa firebase-adminsdk-foo.json gcp-key.json .kube/config secrets.yml .env credentials.json random.token; do

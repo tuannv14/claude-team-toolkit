@@ -152,6 +152,21 @@ one asserting `CTT_NONINTERACTIVE` survives.
 Skill authors: read fields as `${CTT_FIELD:-}` and treat unset as "not set on
 this profile". Documented in the profiles-and-credentials reference skill.
 
+### Fixed — the documented placeholder was a validly-shaped Linear key
+
+`lin_api_` followed by 40 `x` characters matches Linear's real key pattern,
+because `x` is in the key charset. GitHub push protection rejected the push and
+named four occurrences across `skills/linear/SKILL.md` and the design spec.
+
+The repository's own leak scan could never have caught it: that scan drops any
+line containing `xxx`, which is exactly what the placeholder contained.
+Placeholders are now `lin_api_YOUR-KEY-HERE`, broken by a character outside the
+charset, and a new CI step checks vendor token *shapes* with no `xxx`
+exclusion, so a key-shaped placeholder fails locally instead of at the remote.
+
+The five unpushed commits were rewritten so no blob in the pushed history
+carries the key-shaped string.
+
 ### Fixed — inline comments silently disabled every gate flag (all skills)
 
 The INI parser kept a trailing `# comment` as part of the value, so the
