@@ -50,11 +50,22 @@ After `ctt_load_creds <service> [profile]`:
 - `CTT_PROFILE=<resolved>` (e.g., `default`)
 - `CTT_FIELD_A=<value>`, `CTT_FIELD_B=<secret>` (uppercased, hyphens → underscores)
 
+Each load **clears the fields the previous load set** (tracked in
+`_CTT_LOADED_VARS`) before populating the new ones. A field present in the old
+profile but absent from the new one is therefore unset, not inherited —
+without that, switching profiles would silently carry `default_team`, `org`,
+`project`, `default_app`, `database`, `read_only` or `require_confirm` across
+accounts. Control variables such as `CTT_NONINTERACTIVE` are never touched.
+
+Consequence for skill authors: read every field as `${CTT_FIELD:-}` and treat
+unset as "not configured on this profile". Never assume a field survives a
+profile switch.
+
 ## Helper API (from `lib/credentials.sh`)
 
 | Function | Purpose |
 |---|---|
-| `ctt_load_creds <svc> [profile]` | Resolve + load profile into `CTT_*` env |
+| `ctt_load_creds <svc> [profile]` | Clear the previous profile's fields, then resolve + load this one into `CTT_*` env |
 | `ctt_save_profile <svc> <profile> <k=v>...` | Atomic INI section write |
 | `ctt_list_profiles <svc>` | List sections, mark active with `*` |
 | `ctt_use_profile <svc> <profile>` | Set active profile pointer |
@@ -76,7 +87,8 @@ ctt_warn_destructive "Action description"                # noisy stderr banner
 
 ## Common Mistakes
 
-- Reading credentials directly with `awk` instead of `ctt_load_creds` → bypasses perm validation
+- Reading credentials directly with `awk` instead of `ctt_load_creds` → bypasses perm validation and the cross-profile clearing
+- Assuming a field persists across a profile switch → it is cleared on every load. Read `${CTT_FIELD:-}`, not `$CTT_FIELD`.
 - Logging full credential values instead of `ctt_mask` → secrets leak to terminal/CI logs
 - Using `eval` to set vars from credentials → injection risk. Helper uses `printf -v` for safety.
 - Audit log records values not just key names → audit log itself becomes a secret store

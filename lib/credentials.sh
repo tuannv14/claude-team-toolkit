@@ -134,6 +134,26 @@ ctt_load_creds() {
     return 1
   fi
 
+  # Clear the fields set by a PREVIOUS ctt_load_creds before loading this
+  # profile. Without this, a field present in the old profile but absent from
+  # the new one keeps its old value: switching from a profile with
+  # default_team=ENG to one without it would silently keep ENG and write to the
+  # wrong team. Same class of bug for sentry's project, heroku's default_app,
+  # postgres's database/password, and the read_only / require_confirm flags.
+  #
+  # Only variables this function set are cleared, tracked in _CTT_LOADED_VARS.
+  # Control variables the user or CI sets (CTT_NONINTERACTIVE) are never
+  # touched. _CTT_LOADED_VARS is deliberately NOT local — it has to survive
+  # between calls.
+  if [ -n "${_CTT_LOADED_VARS:-}" ]; then
+    local _ctt_v
+    # shellcheck disable=SC2086  # intentional word splitting over a name list
+    for _ctt_v in $_CTT_LOADED_VARS; do
+      unset "$_ctt_v"
+    done
+  fi
+  _CTT_LOADED_VARS=""
+
   # Export each field as CTT_<UPPERCASE>
   CTT_PROFILE="$profile"
   export CTT_PROFILE
@@ -160,6 +180,7 @@ ctt_load_creds() {
     # Use printf -v (POSIX-ish) instead of eval for safety
     printf -v "CTT_${upper}" '%s' "$value"
     export "CTT_${upper}"
+    _CTT_LOADED_VARS="$_CTT_LOADED_VARS CTT_${upper}"
   done < <(_ctt_section "$cred_file" "$profile")
 }
 

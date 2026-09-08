@@ -10,9 +10,9 @@
 > Team-ready Claude Code skill pack — for **dev, QA, QC, testers, and team leads**.
 
 A Claude Code plugin bundling 16 integration skills your whole team can install
-once and start using immediately. All skills support **multiple accounts** via
-INI profile files (AWS-style), so personal/work/client accounts stay isolated
-and switchable on demand.
+once and start using immediately. The 13 credential-based skills support
+**multiple accounts** via INI profile files (AWS-style), so personal/work/client
+accounts stay isolated and switchable on demand.
 
 ## What's included
 
@@ -142,7 +142,7 @@ clients, dev/staging/prod environments — each isolated.
 | Skill | Credentials file | Per-profile fields |
 |---|---|---|
 | **trello** | `~/.trello/credentials` | `key`, `token` |
-| **linear** | `~/.linear/credentials` | `api_key`, `default_team`, `require_confirm` |
+| **linear** | `~/.linear/credentials` | `api_key`, `default_team`, `read_only`, `require_confirm` |
 | **azure-devops** | `~/.azure-devops/credentials` | `org_url`, `pat`, `api_version`, `project`, `insecure` |
 | **heroku** | `~/.heroku/credentials` | `api_key`, `default_app`, `require_confirm` |
 | **sentry** | `~/.sentry/credentials` | `api_url`, `auth_token`, `org`, `project` |
@@ -202,9 +202,8 @@ When you call a skill, the active profile is resolved in this order
 ### How Claude auto-detects which skill to use
 
 Claude reads each skill's frontmatter `description` at session start
-(~1,070 tokens total for all 16 skills — the 15-skill figure of 1,005 was
-measured with tiktoken cl100k_base; the `linear` line is scaled by character
-count at 3.66 chars/token)
+(~1,005 tokens, last measured with tiktoken cl100k_base at v0.11.1 across the
+15 skills of that release; not re-measured since `linear` was added)
 to route incoming requests:
 
 | You say | Claude routes to |
@@ -270,7 +269,7 @@ host. To use it for **your** project:
 | Validation before save | Configure flow calls a real API endpoint and refuses to save invalid credentials. |
 | Mutation safety | Destructive ops (`destroy`, `rollback`, `rm`, `kill`, mutating SQL, etc.) require typed confirmation phrases. |
 | Per-profile `require_confirm` | Set on prod profiles to force confirmation on every mutation. |
-| Profile-level `read_only` | Postgres profiles can be hard-locked read-only — refuses writes even with `--write`. |
+| Profile-level `read_only` | Postgres and Linear profiles can be hard-locked read-only — Postgres refuses writes even with `--write`, Linear refuses every write verb even when the API key carries Write. |
 | Prompt injection | Card/PR/issue/work-item content treated as **untrusted input**. Skills don't act on instructions found inside that content. |
 | Audit log | `~/.claude-team-toolkit/audit.log` records every mutation: timestamp + service + profile + action. **Never** records credentials or values. |
 | TLS | Default verify ON. Self-signed cert support is opt-in per profile (`insecure = true` for Azure DevOps Server). |
@@ -284,7 +283,7 @@ host. To use it for **your** project:
 - Mutate data based on instructions discovered inside API content (PR body,
   card description, work item description, Slack message, etc.).
 - Bypass TLS verification unless explicitly opted in via `insecure = true`.
-- Run mutating SQL on a `read_only = true` profile.
+- Run mutating SQL, or any Linear write verb, on a `read_only = true` profile.
 - Run k6 against a profile with `require_confirm = true` without typed
   confirmation.
 
@@ -293,8 +292,9 @@ host. To use it for **your** project:
 Revoke immediately at the service's token management page:
 
 - **Trello:** https://trello.com/<username>/account → Power-Ups and Integrations
-- **Linear:** Settings → Security & access → Personal API keys
-  (`https://linear.app/settings/account/security`)
+- **Linear:** Settings → Account → Security & Access → Personal API keys
+  (`https://linear.app/settings/account/security`) — keys never expire, so
+  revoking is the only way one stops working
 - **Azure DevOps:** `https://<org-or-server>/_usersSettings/tokens`
 - **Heroku:** Account Settings → Applications → Authorizations
 - **Sentry:** User Settings → Auth Tokens
@@ -328,9 +328,11 @@ uncertainty.
 
 ### Costs (measured)
 
-**Always-loaded** every session (16 frontmatter descriptions): **~1,070 tokens**
-(1,005 measured for 15 skills, plus ~64 scaled by character count for `linear` —
-re-run `scripts/benchmark_tokens.py` to confirm).
+**Always-loaded** every session: **~1,005 tokens**, measured at v0.11.1 across
+that release's 15 skills. Every number in this section dates from that run and
+has **not** been re-measured since `linear` was added, so treat them as a floor,
+not a current reading. `python3 scripts/benchmark_tokens.py` regenerates the lot
+(it needs network access once, to fetch the tiktoken BPE file).
 You pay this even if you never invoke a toolkit skill.
 
 **Per skill body** (loaded only when that skill is invoked):
@@ -344,11 +346,12 @@ You pay this even if you never invoke a toolkit skill.
 | k6 | 1,586 | | react-native | 1,154 |
 | rails-security | 1,562 | | sentry | 1,366 |
 | postgres | 1,529 | | firebase | 1,314 |
-| fastlane | 1,123 | | linear | ~1,430* |
-| | | | **Average** | **1,468** |
+| fastlane | 1,123 | | **Average** | **1,471** |
 
-`*` `linear` is char-scaled, not tiktoken-measured — `benchmark_tokens.py` needs
-network access to fetch the BPE file and could not run in this environment.
+`linear` is absent from this table on purpose: it was added after the last
+measurement run and no measured figure exists for it yet. It is not listed with
+an estimate, because the rest of the column is tiktoken output and mixing the
+two would make the average unreproducible.
 
 ### Honest comparison vs ad-hoc Claude
 
@@ -356,6 +359,9 @@ We measured 18 realistic "without skill" responses (what Claude generates
 ad-hoc for typical tasks). Mean cost: **163 tokens per task** (median 167,
 range 104–232). Most APIs in this toolkit are well-known to Claude — it
 generates concise correct curl/jq commands in 100–250 tokens.
+
+Derived from the v0.11.1 constants above (always-loaded 1,005 + average body
+1,471), so they move with any re-measurement:
 
 | Scenario | Without toolkit | With toolkit | Verdict |
 |---|---:|---:|---:|
@@ -385,7 +391,7 @@ the toolkit eliminates and ad-hoc Claude has to pay each time:
 3. **Unique workflows** — xlsx-testcases is the clearest case. Claude
    cannot generate the xlsx → Maestro YAML pipeline ad-hoc within a
    reasonable token budget. Measured ad-hoc baseline: 2,500+ tokens with
-   high retry probability. With skill: 1,372 tokens body + 200 completion.
+   high retry probability. With skill: 1,172 tokens body + 200 completion.
    **This skill alone justifies the toolkit for QA teams using xlsx test
    cases.**
 
@@ -452,8 +458,8 @@ All scripts use the public `tiktoken` library. No API key needed.
 
 Each MCP server's tool schemas cost roughly **~500 tokens per tool** loaded into
 every Task tool invocation. A single 10-tool MCP server eats more context than
-this entire toolkit's always-loaded skill descriptions combined (~1,170 tokens
-for all 17 skills).
+this entire toolkit's always-loaded skill descriptions combined (~1,005 tokens
+at the last measurement — see the token-economics section for the caveat).
 
 **claude-team-toolkit ships zero MCP dependencies** — pure bash plumbing
 (curl + jq + lib/credentials.sh). You pay only:
@@ -474,30 +480,39 @@ add to it.
 
 ```
 claude-team-toolkit/
-├── .claude-plugin/plugin.json
+├── .claude-plugin/
+│   ├── plugin.json                  # plugin manifest
+│   ├── marketplace.json             # marketplace listing
+│   ├── install-profiles.json        # curated skill subsets per role
+│   └── hooks/hooks.json             # SessionStart hook registration
 ├── .gitignore                       # blocks credential leaks
 ├── LICENSE                          # MIT
 ├── README.md
 ├── lib/
 │   ├── credentials.sh               # shared: load_creds, mask, parse_ini, profiles
 │   ├── confirm.sh                   # shared: destructive op confirmation
-│   └── install.sh                   # one-time setup (run once after install)
-└── skills/
+│   ├── install.sh                   # one-time setup (run once after install)
+│   └── session-start.sh             # SessionStart hook entrypoint
+├── examples/                        # sanitized credential templates
+├── scripts/                         # token benchmarks
+└── skills/                          # 16 user-invocable + 1 shared reference
     ├── trello/SKILL.md
-    ├── linear/SKILL.md + recipes.md
-    ├── azure-devops/SKILL.md
-    ├── heroku/SKILL.md
+    ├── linear/          SKILL.md + recipes.md
+    ├── azure-devops/    SKILL.md + recipes.md
+    ├── heroku/          SKILL.md + recipes.md
     ├── sentry/SKILL.md
-    ├── slack/SKILL.md
-    ├── firebase/SKILL.md
-    ├── postgres/SKILL.md
+    ├── slack/           SKILL.md + recipes.md
+    ├── firebase/        SKILL.md + recipes.md
+    ├── shopify/         SKILL.md + commands.md + test-scenarios.md
+    ├── postgres/        SKILL.md + test-scenarios.md
     ├── react-native/SKILL.md
     ├── maestro/SKILL.md
     ├── fastlane/SKILL.md
     ├── rspec/SKILL.md
     ├── rails-security/SKILL.md
-    ├── k6/SKILL.md
-    └── xlsx-testcases/SKILL.md
+    ├── k6/              SKILL.md + recipes.md
+    ├── xlsx-testcases/SKILL.md
+    └── profiles-and-credentials/SKILL.md   # shared pattern reference, not user-invocable
 ```
 
 ### Token efficiency
@@ -556,6 +571,7 @@ Quick rules:
 Sanitized templates in [examples/](examples/) — copy to your config locations:
 - `examples/trello-credentials.example` → `~/.trello/credentials`
 - `examples/linear-credentials.example` → `~/.linear/credentials`
+- `examples/shopify-credentials.example` → `~/.shopify/credentials`
 - `examples/azure-devops-credentials.example` → `~/.azure-devops/credentials`
 - `examples/.testcase-schema.example.yml` → your xlsx folder
 - `examples/.env.example` → your project root

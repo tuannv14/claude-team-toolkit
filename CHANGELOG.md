@@ -32,8 +32,12 @@ the skill body because they cost time otherwise:
 
 - Personal API keys use `Authorization: <key>` with **no `Bearer` prefix**.
   `Bearer` is OAuth-only and a personal key sent that way is rejected.
-- GraphQL returns **HTTP 200 with an `errors` array** for most failures, so the
-  status code proves nothing. Every recipe checks `.errors` before `.data`.
+- Linear maps errors to real HTTP statuses — **401** for `AUTHENTICATION_ERROR`,
+  **400** for `GRAPHQL_VALIDATION_FAILED`, `INPUT_ERROR` and `RATELIMITED` — and
+  puts the diagnosis in the body of those non-2xx responses. HTTP 200 with an
+  `errors` array also occurs, for partial field-level failures. Either way the
+  status settles nothing, so every recipe reads `.errors` before `.data`
+  regardless of status.
 - Rate limiting returns **HTTP 400** with error code `RATELIMITED`, not 429.
   Limits with an API key: 2,500 requests/hour and 3,000,000 complexity
   points/hour per user, 10,000 points maximum for a single query.
@@ -42,14 +46,130 @@ All 17 GraphQL documents in `recipes.md` were validated against the live schema
 on 2026-09-08. Linear runs document validation **before** authentication, so an
 unauthenticated request returns `AUTHENTICATION_ERROR` for a valid document and
 `GRAPHQL_VALIDATION_FAILED` for a broken one — no key needed. That check caught
-two mistakes before release: `Project` has no `state` field (it is
-`status { name }`), and projects are scoped to a team through `accessibleTeams`,
-not a `team` field. Introspection is likewise open, so `recipes.md` documents
-how to check a doubtful field name.
+one mistake before release: `ProjectFilter` has no `team` input field, so
+projects scope to a team through `accessibleTeams`. Introspection is likewise
+open, so `recipes.md` documents how to check a doubtful field name — including
+reading `isDeprecated`, since validation accepts deprecated fields. `Project.state`
+is one: still valid, but superseded by `status { name }` and typed `String`, so
+the recipes select `status { name }`.
 
-A personal API key is unscoped — it carries the full permissions of the user
-who created it, like a Trello token. The skill masks it as `****<last4>` and
-the credentials file stays mode 600.
+Personal API keys are **scoped**, contrary to what a first reading of the
+developer docs suggests. A key is created with explicit permissions (Read,
+Write, Admin, Create issues, Create comments) and can be restricted to specific
+teams. It is displayed once and never expires, so revocation is the only way one
+stops working. The skill documents least privilege per verb, in the same shape
+as the sentry and shopify skills, and the credentials file stays mode 600 with
+the key masked as `****<last4>`.
+
+### Fixed — recipe abort paths did not abort
+
+Every verb body in `skills/linear/recipes.md` was a bare top-level shell block
+whose failure paths used `return`. Outside a function `return` is a bash error:
+it prints ``can only `return' from a function or sourced script`` and execution
+**continues to the next line**. Confirmed by running it — a declined
+`ctt_confirm` fell straight through to the mutation.
+
+Consequences before the fix: `archive` ran after the user said no; `create` sent
+`teamId: ""` after the team lookup failed and still wrote an audit line; and
+`configure` printed "Key rejected — nothing saved", then printed
+`Authenticated as null <null>` and persisted the rejected key to
+`~/.linear/credentials`.
+
+Every verb is now a named shell function that the recipe invokes, so `return` is
+legal whether the snippet is pasted at top level or sourced. Audit calls moved
+inside the function and after the response check, so a failed write cannot leave
+a false audit record.
+
+### Fixed — `linear_check` passed non-JSON responses as success
+
+The guard tested `jq -e '.errors' … 2>/dev/null`, which cannot tell "no errors
+key" from "jq could not parse this". `linear_gql` uses `curl -s` without `-f`,
+so a proxy or CDN HTML error page, a truncated read, or an empty body all
+arrived with curl exit 0 and were waved through; the next `jq -r '.data…'` then
+died with a raw parse error instead of the intended message. It now rejects
+non-JSON bodies and the non-GraphQL `{"error":…,"code":…}` envelope as well.
+Verified against seven response shapes.
+
+### Fixed — comment read-back could read the wrong comment
+
+The mandatory verification step fetched `comments(last:1)`. The sort direction
+of Linear's connections is not documented, so "last" is not reliably the comment
+just written. It now reads back by the comment id the mutation returned,
+captured before the response file is reused.
+
+### Fixed — README stated token figures it could not reproduce
+
+The 0.12.0 draft hand-bumped the v0.11.1 measurement (1,005 tokens / 15 skills)
+to "~1,070 for 16" in two places while a third said "~1,170 for 17", and added a
+char-scaled `~1,430` row for `linear` into a table of tiktoken output — which
+also made the printed average unreproducible. `benchmark_tokens.py` needs
+network access to fetch the tiktoken BPE file and could not run here, so rather
+than publish numbers that cannot be checked, the section now states the single
+v0.11.1 measurement, says plainly that nothing has been re-measured since
+`linear` was added, and omits `linear` from the per-skill table instead of
+estimating it.
+
+Also corrected: "All skills support multiple accounts" (13 of the 16 do), the
+xlsx-testcases body figure quoted in prose (1,372) contradicting the table
+(1,172), and the architecture tree, which listed 15 of 17 skill directories and
+omitted `marketplace.json`, `install-profiles.json`, `hooks/hooks.json`,
+`session-start.sh`, and the per-skill reference files.
+
+`benchmark_tokens.py` and `benchmark_cross_validate.py` hardcoded "15 skills" in
+their labels while iterating every directory, so the tools the README points at
+for verification contradicted it. Both now derive the count. `linear` was also
+missing from `WITHOUT_SKILL_BASELINE`, silently falling back to the generic
+default; it now has an entry.
+
+### Fixed — CI credential scan skipped the credential templates
+
+The leak scan's `--include` list covered `*.md`, `*.json`, `*.sh` and `*.yml`
+but not `*.example` — the files a contributor is most likely to paste a real key
+into while copying their working config. Added `*.example`, which also brings
+the trello, azure-devops and shopify templates into scope.
+
+### Fixed — cross-profile credential leak in the shared lib (affects every skill)
+
+`ctt_load_creds` populated `CTT_<FIELD>` for each field in the new profile but
+never cleared the previous load, so any field present in profile A and absent
+from profile B kept A's value. Found while testing the new `read_only` flag:
+loading `[default]` (with `default_team = ENG`) then `[work]` (without one) left
+`CTT_DEFAULT_TEAM=ENG`, so `/linear --profile work create` would have created the
+issue in the wrong team.
+
+This is not linear-specific. The same silent carry-over applied to sentry's
+`org`/`project`, heroku's `default_app`, postgres's `host`/`database`/`password`,
+shopify's `api_version`, and the `read_only` / `require_confirm` flags — in a
+toolkit whose whole premise is keeping accounts isolated. It also leaked across
+services, since `CTT_API_KEY` from one service survived into the next.
+
+`ctt_load_creds` now tracks what it set in `_CTT_LOADED_VARS` and unsets exactly
+those before loading. Control variables the user or CI sets, such as
+`CTT_NONINTERACTIVE`, are deliberately untouched. Two regression tests added to
+CI (7 total for the lib): one asserting no field leaks across a profile switch,
+one asserting `CTT_NONINTERACTIVE` survives.
+
+Skill authors: read fields as `${CTT_FIELD:-}` and treat unset as "not set on
+this profile". Documented in the profiles-and-credentials reference skill.
+
+### Security
+
+- Profiles accept **`read_only = true`**, which refuses every write verb locally
+  even when the API key itself carries Write. Same defense-in-depth shape as the
+  postgres skill's flag.
+- All four write verbs now go through a single `lin_guard_write` helper:
+  `read_only` refuses, `require_confirm` prompts, then the write proceeds.
+  `archive` checks `read_only` first and always confirms.
+- The helper is written as `if`/`fi` rather than `[ cond ] && { ...; }`. As the
+  last line of a function the latter returns the failed test's exit status, so a
+  correctly skipped gate reads as a failed command to the caller.
+- `configure` asks whether the key is Read-only and records it. The API exposes
+  no way to read a key's own permissions back — there is no `apiKeys` field on
+  the query root — so a successful `viewer` validation proves the key is live,
+  not that it can write.
+- `examples/linear-credentials.example` now shows the recommended two-profile
+  split: a Read-only key for queries, a separate narrower key with
+  `require_confirm = true` for the rare mutation.
 
 ### Changed
 

@@ -62,6 +62,7 @@ def main():
     rows = []
 
     # Per-skill measurements
+    n_skills = 0
     fm_total = {"cl100k": 0, "o200k": 0, "char": 0}
     body_total = {"cl100k": 0, "o200k": 0, "char": 0}
     desc_total = {"cl100k": 0, "o200k": 0, "char": 0}
@@ -75,6 +76,7 @@ def main():
         if len(parts) < 3:
             continue
         fm, body = parts[1], parts[2]
+        n_skills += 1
 
         desc_match = re.search(
             r"^description:\s*(.+?)(?=\n[a-z][a-z-]*:|\n---|\Z)",
@@ -89,9 +91,9 @@ def main():
             desc_total[k] += fn(desc)
 
     for label, totals in [
-        ("Frontmatter (15 skills)", fm_total),
+        (f"Frontmatter ({n_skills} skills)", fm_total),
         ("Description-only", desc_total),
-        ("All bodies (15 skills)", body_total),
+        (f"All bodies ({n_skills} skills)", body_total),
     ]:
         avg = (totals["cl100k"] + totals["o200k"] + totals["char"]) / 3
         spread = max(totals.values()) - min(totals.values())

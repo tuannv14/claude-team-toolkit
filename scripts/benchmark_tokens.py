@@ -67,6 +67,7 @@ def measure_skills():
 WITHOUT_SKILL_BASELINE = {
     # Well-known APIs Claude usually gets right first try
     "trello":         (700, 0.20),    # REST, well-known
+    "linear":         (850, 0.35),    # GraphQL-only; field/filter names often retried
     "slack":          (800, 0.20),    # Web API, well-known
     "heroku":         (900, 0.30),    # Platform API v3 less common
     "aws-s3":         (600, 0.10),    # AWS CLI very well-known
@@ -125,9 +126,9 @@ def main():
     print("-" * 78)
     print(f"{'TOTAL':<20} {total_fm:>6} {total_desc:>6} {total_body:>7}")
     print()
-    print(f"Always-loaded base cost (every session, all 15 frontmatters): {total_fm} tokens")
+    print(f"Always-loaded base cost (every session, all {len(rows)} frontmatters): {total_fm} tokens")
     print(f"Description-only subset: {total_desc} tokens")
-    print(f"Sum of all bodies (max if all 15 invoked): {total_body} tokens")
+    print(f"Sum of all bodies (max if all {len(rows)} invoked): {total_body} tokens")
     print()
 
     # Scenario comparisons
