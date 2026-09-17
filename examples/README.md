@@ -7,9 +7,9 @@ Sanitized templates for setting up `claude-team-toolkit` skills.
 | `.testcase-schema.example.yml` | Column mapping for `/xlsx-testcases` — copy to your xlsx folder |
 | `.env.example` | Per-call profile switch via env vars |
 | `trello-credentials.example` | Multi-account Trello creds template |
-| `linear-credentials.example` | Multi-workspace Linear creds template |
 | `shopify-credentials.example` | Multi-store / multi-app Shopify creds template |
 | `azure-devops-credentials.example` | ADO Services + Server multi-org template |
+| `mcp-permissions.example.json` | Allow/deny tiers for the azure-devops, heroku and linear MCP servers |
 
 ## How to use
 

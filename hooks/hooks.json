@@ -10,7 +10,33 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/lib/session-start.sh\""
           }
         ],
-        "description": "Pre-warm credential discovery: list which claude-team-toolkit profiles are configured (trello, linear, azure-devops, heroku, sentry, slack, firebase, shopify, postgres, maestro, fastlane, k6, rspec) and the active default per service. Output is advisory only — never blocks."
+        "description": "Pre-warm credential discovery: list which claude-team-toolkit profiles are configured (trello, linear, azure-devops, heroku, sentry, slack, firebase, shopify, postgres, maestro, fastlane, k6, rspec) and the active default per service. Output is advisory only \u2014 never blocks."
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "p=\"${CLAUDE_PLUGIN_ROOT}/hooks/heroku_guard.py\"; [ -f \"$p\" ] || exit 0; if python -c \"\" >/dev/null 2>&1; then python \"$p\"; elif py -3 -c \"\" >/dev/null 2>&1; then py -3 \"$p\"; elif python3 -c \"\" >/dev/null 2>&1; then python3 \"$p\"; fi",
+            "shell": "bash",
+            "timeout": 15
+          }
+        ],
+        "description": "Refuse state-changing Heroku CLI commands run through Bash. A permission rule matches the command string by prefix and every shell wrapping defeats it; this hook scans the whole command. Fails open on error. Set CTT_GUARDS=off to disable."
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "p=\"${CLAUDE_PLUGIN_ROOT}/hooks/mcp_only_guard.py\"; [ -f \"$p\" ] || exit 0; if python -c \"\" >/dev/null 2>&1; then python \"$p\"; elif py -3 -c \"\" >/dev/null 2>&1; then py -3 \"$p\"; elif python3 -c \"\" >/dev/null 2>&1; then python3 \"$p\"; fi",
+            "shell": "bash",
+            "timeout": 15
+          }
+        ],
+        "description": "Refuse hand-written HTTP to api.linear.app, api.heroku.com and any /_apis/ URL. The azure-devops, heroku and linear skills go through MCP, where permission tiers apply; a raw curl is subject to none of them. git is untouched. Fails open on error. Set CTT_GUARDS=off to disable."
       }
     ]
   }

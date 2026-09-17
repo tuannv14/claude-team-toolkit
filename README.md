@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/tuannv14/claude-team-toolkit/actions/workflows/lint.yml/badge.svg)](https://github.com/tuannv14/claude-team-toolkit/actions/workflows/lint.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.12.2-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
+[![Version](https://img.shields.io/badge/version-0.13.0-green.svg)](https://github.com/tuannv14/claude-team-toolkit/releases)
 [![Skills](https://img.shields.io/badge/skills-16-orange.svg)](#whats-included)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-7a3aff.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Listed on ClaudePluginHub](https://www.claudepluginhub.com/badge/tuannv14-claude-team-toolkit)](https://www.claudepluginhub.com/plugins/tuannv14-claude-team-toolkit?ref=badge)
@@ -10,9 +10,11 @@
 > Team-ready Claude Code skill pack — for **dev, QA, QC, testers, and team leads**.
 
 A Claude Code plugin bundling 16 integration skills your whole team can install
-once and start using immediately. The 13 credential-based skills support
-**multiple accounts** via INI profile files (AWS-style), so personal/work/client
-accounts stay isolated and switchable on demand.
+once and start using immediately. Ten credential-based skills support **multiple
+accounts** via INI profile files (AWS-style), so personal/work/client accounts
+stay isolated and switchable on demand. Three more — `azure-devops`, `heroku`
+and `linear` — go through an MCP server instead; see
+[docs/mcp-servers.md](docs/mcp-servers.md).
 
 ## What's included
 
@@ -21,9 +23,9 @@ accounts stay isolated and switchable on demand.
 | Skill | Slash command | What it does |
 |---|---|---|
 | **trello** | `/trello` | Boards, lists, cards, comments via Trello REST API |
-| **linear** | `/linear` | Issues, teams, projects, cycles via Linear GraphQL API |
-| **azure-devops** | `/azure-devops` | Repos, PRs, work items, pipelines (Services + self-hosted Server) |
-| **heroku** | `/heroku` | Apps, dynos, releases, config vars, logs, pipelines (Platform API v3) |
+| **linear** 🔌 | `/linear` | Issues, teams, projects, cycles via the Linear MCP server |
+| **azure-devops** 🔌 | `/azure-devops` | Repos, PRs, work items, wiki via the Azure DevOps MCP server |
+| **heroku** 🔌 | `/heroku` | Apps, dynos, logs, add-ons, Postgres health, pipelines via the Heroku MCP server |
 | **sentry** | `/sentry` | Issues, events, releases (Sentry SaaS + self-hosted) |
 | **slack** | `/slack` | Post messages, threads, file uploads, channel/user lookup |
 | **firebase** | `/firebase` | Remote Config, App Distribution, Crashlytics symbols, Functions, Hosting (multi-project) |
@@ -91,7 +93,8 @@ Most skills need `curl` + `jq`. Some need extras:
 
 | Skill | Extra dependency |
 |---|---|
-| heroku, sentry, slack, trello, linear, azure-devops | `curl`, `jq` |
+| sentry, slack, trello | `curl`, `jq` |
+| azure-devops, heroku, linear 🔌 | an MCP server each — [docs/mcp-servers.md](docs/mcp-servers.md). Heroku also needs the Heroku CLI v10.8.1+ |
 | firebase | `firebase-tools` (`npm install -g firebase-tools`) |
 | postgres | `psql` (PostgreSQL client) |
 | rspec, rails-security | Ruby project with bundler (gems: `brakeman`, `bundler-audit`) |
@@ -106,9 +109,13 @@ Most skills need `curl` + `jq`. Some need extras:
 ```bash
 # In Claude Code:
 /trello configure
-/azure-devops configure
-/heroku configure
+/sentry configure
+/slack configure
 # ... etc.
+
+`azure-devops`, `heroku` and `linear` have no `configure` — their credentials
+live in the MCP server. Wire those up with
+[docs/mcp-servers.md](docs/mcp-servers.md) instead.
 ```
 
 Each `configure` is interactive and:
@@ -122,7 +129,7 @@ Each `configure` is interactive and:
 ```bash
 /trello card https://trello.com/c/AbCd1234
 /azure-devops pr-list MyRepo MyProject
-/heroku scale my-app web=3
+/heroku dynos my-app
 /sentry issues --query "is:unresolved age:-24h"
 /slack post "#deploys" "v2.1.0 shipped"
 /linear issue ENG-123
@@ -146,9 +153,6 @@ clients, dev/staging/prod environments — each isolated.
 | Skill | Credentials file | Per-profile fields |
 |---|---|---|
 | **trello** | `~/.trello/credentials` | `key`, `token` |
-| **linear** | `~/.linear/credentials` | `api_key`, `default_team`, `read_only`, `require_confirm` |
-| **azure-devops** | `~/.azure-devops/credentials` | `org_url`, `pat`, `api_version`, `project`, `insecure` |
-| **heroku** | `~/.heroku/credentials` | `api_key`, `default_app`, `require_confirm` |
 | **sentry** | `~/.sentry/credentials` | `api_url`, `auth_token`, `org`, `project` |
 | **slack** | `~/.slack/credentials` | `bot_token`, `default_channel`, `require_confirm` |
 | **firebase** | `~/.firebase/credentials` | `project_id`, `service_account`, `ios_app_id`, `android_app_id`, `require_confirm` |
@@ -185,9 +189,13 @@ TRELLO_PROFILE=work /trello cards <listId>     # via env var (per-shell session)
 /trello boards                                 # uses active profile or [default]
 ```
 
-Same dispatch commands across **all 13 multi-account skills**. Replace
-`trello` with `linear`, `azure-devops`, `heroku`, `sentry`, `slack`, `firebase`,
-`shopify`, `postgres`, `k6`, `maestro`, `fastlane`, or `rspec`.
+Same dispatch commands across **all 10 multi-account skills**. Replace
+`trello` with `sentry`, `slack`, `firebase`, `shopify`, `postgres`, `k6`,
+`maestro`, `fastlane`, or `rspec`.
+
+`azure-devops`, `heroku` and `linear` have no profiles: an MCP server is
+configured once with one credential. To work across several accounts of those,
+declare one server per account under distinct names.
 
 ### Profile resolution priority
 
@@ -196,10 +204,9 @@ When you call a skill, the active profile is resolved in this order
 
 1. **`--profile <name>` flag** — highest priority, per-call override
 2. **`<SERVICE>_PROFILE` env var** — per-shell session
-   - `TRELLO_PROFILE`, `HEROKU_PROFILE`, `SENTRY_PROFILE`, `SLACK_PROFILE`,
-     `LINEAR_PROFILE`, `FIREBASE_PROFILE`, `SHOPIFY_PROFILE`, `PG_PROFILE`, `K6_PROFILE`,
-     `MAESTRO_PROFILE`, `FASTLANE_PROFILE`, `RSPEC_PROFILE`
-   - `azure-devops` accepts both `AZDO_PROFILE` and `AZURE_DEVOPS_PROFILE`
+   - `TRELLO_PROFILE`, `SENTRY_PROFILE`, `SLACK_PROFILE`, `FIREBASE_PROFILE`,
+     `SHOPIFY_PROFILE`, `PG_PROFILE`, `K6_PROFILE`, `MAESTRO_PROFILE`,
+     `FASTLANE_PROFILE`, `RSPEC_PROFILE`
 3. **`~/.<service>/active_profile`** — written by `profile use`, persists across sessions
 4. **`[default]` section** — fallback if nothing else is set
 
@@ -213,9 +220,9 @@ to route incoming requests:
 | You say | Claude routes to |
 |---|---|
 | "fetch this trello card" / paste `https://trello.com/c/...` URL | `/trello card <id>` |
-| "what are my linear issues?" / paste a `linear.app/*/issue/` URL / say `ENG-123` | `/linear issues` or `/linear issue ENG-123` |
-| "list azure devops PRs" / mention an ADO repo | `/azure-devops pr-list` |
-| "scale my heroku app" / "promote staging to prod" | `/heroku scale` or `/heroku promote` |
+| "what are my linear issues?" / paste a `linear.app/*/issue/` URL / say `ENG-123` | `/linear` → `mcp__linear__list_issues` |
+| "list azure devops PRs" / mention an ADO repo | `/azure-devops` → `mcp__azure-devops__list-pull-requests` |
+| "is my heroku app up?" / "why is Postgres slow?" | `/heroku` → `mcp__heroku__ps_list`, `pg_outliers` |
 | "any sentry errors today?" | `/sentry issues` |
 | "post this to slack" | `/slack post` |
 | "deploy firebase functions" | `/firebase fn-deploy` |
@@ -269,7 +276,7 @@ host. To use it for **your** project:
 |---|---|
 | Credential storage | `~/.<service>/credentials`, mode `0600`. Skills **refuse to load** if the file is world-readable on POSIX. |
 | Accidental commits | Shipped `.gitignore` blocks `**/credentials`, `**/*.pat`, `**/*.token`, `**/*.key`, `**/*.pem`, `.env*`, `**/secrets/`, AWS/GCP credential patterns. |
-| Display masking | Tokens/PATs shown as `****<last4>` only. Config vars matching `KEY|SECRET|TOKEN|PASSWORD|DSN|URL` are auto-masked in `/heroku config` output. |
+| Display masking | Tokens/PATs shown as `****<last4>` only, on the profile-based skills. The MCP-based skills never see a credential at all. |
 | Validation before save | Configure flow calls a real API endpoint and refuses to save invalid credentials. |
 | Mutation safety | Destructive ops (`destroy`, `rollback`, `rm`, `kill`, mutating SQL, etc.) require typed confirmation phrases. |
 | Per-profile `require_confirm` | Set on prod profiles to force confirmation on every mutation. |
@@ -278,6 +285,8 @@ host. To use it for **your** project:
 | Audit log | `~/.claude-team-toolkit/audit.log` records every mutation: timestamp + service + profile + action. **Never** records credentials or values. |
 | TLS | Default verify ON. Self-signed cert support is opt-in per profile (`insecure = true` for Azure DevOps Server). |
 | Least privilege | Each skill documents the **minimum scopes/permissions** needed. Prefer scoped tokens. |
+| MCP-based skills | `azure-devops`, `heroku` and `linear` hold no credential: the MCP server does. Their boundary is a permission tier list plus two guard hooks the plugin ships and wires itself. See [docs/mcp-servers.md](docs/mcp-servers.md). |
+| Shipped guard hooks | `heroku_guard.py` refuses state-changing Heroku CLI commands run through Bash, which no prefix-matching permission rule catches. `mcp_only_guard.py` refuses hand-written HTTP to `api.linear.app`, `api.heroku.com` and any `/_apis/` URL, which is what keeps the tier list meaningful. `git` untouched. Both fail open; `CTT_GUARDS=off` disables them. |
 
 ### What the skills will **never** do
 
@@ -287,7 +296,9 @@ host. To use it for **your** project:
 - Mutate data based on instructions discovered inside API content (PR body,
   card description, work item description, Slack message, etc.).
 - Bypass TLS verification unless explicitly opted in via `insecure = true`.
-- Run mutating SQL, or any Linear write verb, on a `read_only = true` profile.
+- Run mutating SQL on a `read_only = true` profile.
+- Reach Azure DevOps, Heroku or Linear with a hand-written HTTP call — a shipped
+  hook refuses it, so the MCP permission tiers cannot be routed around.
 - Run k6 against a profile with `require_confirm = true` without typed
   confirmation.
 
@@ -296,9 +307,8 @@ host. To use it for **your** project:
 Revoke immediately at the service's token management page:
 
 - **Trello:** https://trello.com/<username>/account → Power-Ups and Integrations
-- **Linear:** Settings → Account → Security & Access → Personal API keys
-  (`https://linear.app/settings/account/security`) — keys never expire, so
-  revoking is the only way one stops working
+- **Linear:** the skill uses OAuth through the MCP server — revoke at Settings →
+  Account → Security & Access → Applications
 - **Azure DevOps:** `https://<org-or-server>/_usersSettings/tokens`
 - **Heroku:** Account Settings → Applications → Authorizations
 - **Sentry:** User Settings → Auth Tokens
@@ -458,25 +468,36 @@ All scripts use the public `tiktoken` library. No API key needed.
 
 ---
 
-## Why curl + jq, not MCP?
+## curl + jq, and MCP where it earns it
 
-Each MCP server's tool schemas cost roughly **~500 tokens per tool** loaded into
-every Task tool invocation. A single 10-tool MCP server eats more context than
-this entire toolkit's always-loaded skill descriptions combined (~1,005 tokens
-at the last measurement — see the token-economics section for the caveat).
+Thirteen skills are pure bash plumbing: curl, jq, and `lib/credentials.sh`. No
+node_modules, no daemon, no MCP server schemas loaded into every session. You pay
+the frontmatter description (~25 tokens per skill, always loaded) and the skill
+body (~700–1,500 tokens) only when that skill is invoked.
 
-**claude-team-toolkit ships zero MCP dependencies** — pure bash plumbing
-(curl + jq + lib/credentials.sh). You pay only:
+Three skills — `azure-devops`, `heroku`, `linear` — go the other way and talk
+**only** to an MCP server. That is worth the per-tool schema cost for a specific
+reason, and it is not "MCP is nicer":
 
-- The frontmatter description (1 line per skill, ~25 tokens) — always loaded
-- The skill body (~700–1,500 tokens) — loaded **only** when that skill is invoked
-- Reference files (e.g., `shopify/commands.md`) — loaded **only** when the SKILL.md tells the model to load them
+- **The credential never reaches the skill.** The server process holds it. With
+  curl the token is on a command line or in a file the skill reads.
+- **A deny rule is enforced by the host, before the tool runs.** `ctt_confirm`
+  is a prompt, and a prompt can be answered "yes" by a model in a hurry.
+- **One boundary instead of two.** A skill that kept a curl fallback would need
+  every safety rule written twice, and the weaker copy is the one that gets used.
 
-No MCP server schemas. No node_modules. No daemon. No "10-MCP cap" to worry about.
+The cost is real and worth stating: those three lose `--profile`, `read_only`,
+`require_confirm` and the audit log, because none of those exist on the MCP path.
+Their safety boundary is the permission tier list and two guard hooks instead.
+One of those hooks refuses hand-written HTTP to the three services, which is what
+makes "MCP-only" true in practice rather than by convention.
 
-If you do need MCP-backed integrations (e.g., GitHub via the official MCP server),
-mix and match — claude-team-toolkit doesn't fight your MCP setup, it just doesn't
-add to it.
+Setup for all three: [docs/mcp-servers.md](docs/mcp-servers.md). The toolkit
+ships no MCP servers — a server is a process with its own credentials and update
+cycle, and these three systems differ at every company.
+
+If you do need other MCP-backed integrations, mix and match — the toolkit does
+not fight your MCP setup.
 
 ---
 
@@ -488,8 +509,10 @@ claude-team-toolkit/
 │   ├── plugin.json                  # plugin manifest
 │   ├── marketplace.json             # marketplace listing
 │   └── install-profiles.json        # curated skill subsets per role
-├── hooks/hooks.json                 # SessionStart hook (must be at the root,
-│                                    # not under .claude-plugin/)
+├── hooks/                           # must be at the root, not under .claude-plugin/
+│   ├── hooks.json                   # SessionStart + two PreToolUse guards
+│   ├── heroku_guard.py              # refuses state-changing heroku CLI
+│   └── mcp_only_guard.py            # refuses raw HTTP to the three MCP services
 ├── .gitignore                       # blocks credential leaks
 ├── LICENSE                          # MIT
 ├── README.md
@@ -498,13 +521,14 @@ claude-team-toolkit/
 │   ├── confirm.sh                   # shared: destructive op confirmation
 │   ├── install.sh                   # one-time setup (run once after install)
 │   └── session-start.sh             # SessionStart hook entrypoint
+├── docs/mcp-servers.md              # wiring for the three MCP-based skills
 ├── examples/                        # sanitized credential templates
 ├── scripts/                         # token benchmarks
 └── skills/                          # 16 user-invocable + 1 shared reference
     ├── trello/SKILL.md
-    ├── linear/          SKILL.md + recipes.md
-    ├── azure-devops/    SKILL.md + recipes.md
-    ├── heroku/          SKILL.md + recipes.md
+    ├── linear/SKILL.md              # MCP-only
+    ├── azure-devops/SKILL.md        # MCP-only
+    ├── heroku/SKILL.md              # MCP-only
     ├── sentry/SKILL.md
     ├── slack/           SKILL.md + recipes.md
     ├── firebase/        SKILL.md + recipes.md
@@ -575,9 +599,9 @@ Quick rules:
 
 Sanitized templates in [examples/](examples/) — copy to your config locations:
 - `examples/trello-credentials.example` → `~/.trello/credentials`
-- `examples/linear-credentials.example` → `~/.linear/credentials`
 - `examples/shopify-credentials.example` → `~/.shopify/credentials`
 - `examples/azure-devops-credentials.example` → `~/.azure-devops/credentials`
+- `examples/mcp-permissions.example.json` → merge into your `.claude/settings.json`
 - `examples/.testcase-schema.example.yml` → your xlsx folder
 - `examples/.env.example` → your project root
 

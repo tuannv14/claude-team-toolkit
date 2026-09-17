@@ -68,3 +68,6 @@ Thumbs.db
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Python bytecode from the shipped hooks
+hooks/__pycache__/

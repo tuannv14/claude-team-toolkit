@@ -29,7 +29,9 @@ fi
 
 # Each line: "<service>: <profile1>, <profile2>* (active marked with *)" or "(none — run /<service> configure)"
 # Services to probe — must match credential dirs under $HOME
-SERVICES="trello linear azure-devops heroku sentry slack firebase shopify postgres maestro fastlane k6 rspec"
+# azure-devops and heroku keep a credentials file that their MCP server reads.
+# linear is OAuth through the MCP server and has no file, so it is not probed.
+SERVICES="trello azure-devops heroku sentry slack firebase shopify postgres maestro fastlane k6 rspec"
 
 any_configured=0
 for svc in $SERVICES; do

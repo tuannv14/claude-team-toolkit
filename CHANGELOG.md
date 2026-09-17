@@ -20,6 +20,62 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - README carries the official ClaudePluginHub badge instead of a hand-rolled
   shields.io lookalike, so badge referrals register against the listing.
 
+## [0.13.0] - 2026-09-17
+
+### Changed — `azure-devops`, `heroku` and `linear` now go through MCP only
+
+**Breaking for those three skills.** They no longer issue REST calls. Each drives
+an MCP server instead, and there is no curl fallback: a hand-written request to
+`api.linear.app`, `api.heroku.com` or any `/_apis/` URL is refused by a hook the
+plugin now ships.
+
+What that buys: the credential stays inside the server process and never reaches
+a command line or a temp file; a denied tool cannot be called at all, where a
+`ctt_confirm` prompt can be answered "yes" by a model in a hurry; and each safety
+rule is written once instead of twice, since a curl fallback would need its own
+weaker copy.
+
+What it costs, stated plainly: those three lose `--profile`, `read_only`,
+`require_confirm` and `ctt_audit_log`, none of which exist on the MCP path. Their
+`~/.<service>/credentials` profiles no longer drive the skill — `~/.heroku` and
+`~/.azure-devops` are still read, but by the MCP servers. To work across several
+accounts of one service, declare one server per account under distinct names.
+
+Removed: `skills/{linear,heroku,azure-devops}/recipes.md` and
+`examples/linear-credentials.example`.
+
+The other thirteen skills are untouched and remain curl + jq with profiles.
+
+### Added — the wiring, the tiers and the guards
+
+- **[docs/mcp-servers.md](docs/mcp-servers.md)** — how to configure the three
+  servers, including the parts that cost a day each to find: the npm package
+  `@heroku/mcp-server` is broken as published and the working copy is inside the
+  Heroku CLI; a Heroku token scoped `read` without `identity` makes `list_apps`
+  fail with "Couldn't find that user"; an empty `HEROKU_API_KEY` is not the same
+  as an absent one; Microsoft's `@azure-devops/mcp` does not support on-premises
+  Azure DevOps Server, and an on-prem REST API of 5.1 rejects the cloud's 7.1
+  with `VssVersionOutOfRangeException`.
+- **`examples/mcp-permissions.example.json`** — 53 read tools allowed, 23
+  state-changing ones denied, ready to merge into a project's settings.
+  `mcp__heroku__pg_credentials` is in the deny list because it changes nothing
+  and so reads like a read tool, while printing live database credentials.
+- **Two `PreToolUse` guard hooks, shipped and wired by the plugin.**
+  `hooks/heroku_guard.py` refuses state-changing Heroku CLI subcommands: a
+  `Bash(heroku pg:psql:*)` deny rule matches by prefix, so `cd /tmp && ...`,
+  `bash -c "..."`, a leading `VAR=value` or a full path to the binary all slip
+  past it, while the hook scans the whole command.
+  `hooks/mcp_only_guard.py` refuses an HTTP client aimed at the three services,
+  which is what makes the tier list mean anything. `git` is untouched by both.
+
+Both guards fail open on internal error, loudly, because a guard that breaks
+every Bash call gets switched off and a switched-off guard protects nothing.
+Both over-block `echo heroku ps:scale` on purpose: the guard cannot distinguish a
+mention from `$(echo heroku ps:scale)`, and a false positive costs one
+manually-run command while a false negative costs a production mutation. Heredoc
+bodies and `-m` commit messages are treated as data, so writing about these
+commands in a commit message works. `CTT_GUARDS=off` disables both.
+
 ## [0.12.2] - 2026-09-08
 
 ### Fixed — the SessionStart hook had never run
