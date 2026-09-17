@@ -7,18 +7,26 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-### Fixed
+## [0.13.1] - 2026-09-17
 
-- GitHub labelled this repository **Python**. The three one-off benchmark
-  scripts under `scripts/` outweighed every shell script in the tree by 7
-  bytes, and every directory that reads GitHub's language field —
-  ClaudePluginHub included — repeated the label. `.gitattributes` now marks
-  them `linguist-detectable=false`; nothing else about them changes.
+Documentation only. No skill, hook or library behaviour changed.
 
-### Changed
+### Added — upgrade note for anyone with hand-copied skill folders
 
-- README carries the official ClaudePluginHub badge instead of a hand-rolled
-  shields.io lookalike, so badge referrals register against the listing.
+A skill folder copied into `~/.claude/skills/` takes precedence over the
+plugin's. Someone who did that before 0.13.0 keeps a curl-based `azure-devops`,
+`heroku` or `linear` that shadows the MCP version — and tells Claude to make
+exactly the REST calls the new guard hook refuses. The README and
+[docs/mcp-servers.md](docs/mcp-servers.md) now say to delete those three folders,
+with the command; copies of the other thirteen skills are stale but harmless.
+
+`~/.linear/credentials` is now unused — Linear authenticates by OAuth inside the
+MCP server. Delete it and revoke the key it holds if nothing else uses it.
+`~/.heroku/credentials` and `~/.azure-devops/credentials` stay, read by the MCP
+servers rather than by the skills.
+
+The Install section also now says plainly that three of the sixteen skills need
+a second setup step and do nothing without an MCP server.
 
 ## [0.13.0] - 2026-09-17
 
@@ -46,22 +54,15 @@ Removed: `skills/{linear,heroku,azure-devops}/recipes.md` and
 
 The other thirteen skills are untouched and remain curl + jq with profiles.
 
-### Added — upgrade note for anyone with hand-copied skill folders
+### Changed — repository metadata
 
-A skill folder copied into `~/.claude/skills/` takes precedence over the
-plugin's. Someone who did that before 0.13.0 keeps a curl-based `azure-devops`,
-`heroku` or `linear` that shadows the MCP version — and tells Claude to make
-exactly the REST calls the new guard hook refuses. The README and
-[docs/mcp-servers.md](docs/mcp-servers.md) now say to delete those three folders,
-with the command; copies of the other thirteen skills are stale but harmless.
-
-`~/.linear/credentials` is now unused — Linear authenticates by OAuth inside the
-MCP server. Delete it and revoke the key it holds if nothing else uses it.
-`~/.heroku/credentials` and `~/.azure-devops/credentials` stay, read by the MCP
-servers rather than by the skills.
-
-The Install section also now says plainly that three of the sixteen skills need
-a second setup step and do nothing without an MCP server.
+- GitHub labelled this repository **Python**. The three one-off benchmark
+  scripts under `scripts/` outweighed every shell script in the tree by 7
+  bytes, and every directory that reads GitHub's language field —
+  ClaudePluginHub included — repeated the label. `.gitattributes` now marks
+  them `linguist-detectable=false`; nothing else about them changes.
+- README carries the official ClaudePluginHub badge instead of a hand-rolled
+  shields.io lookalike, so badge referrals register against the listing.
 
 ### Added — the wiring, the tiers and the guards
 
