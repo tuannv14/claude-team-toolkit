@@ -68,6 +68,23 @@ git clone https://github.com/tuannv14/claude-team-toolkit.git
 # Then: /plugin marketplace add <local-path>
 ```
 
+Either way, three skills need a second step. `azure-devops`, `heroku` and
+`linear` talk to an MCP server and do nothing without one — see
+[docs/mcp-servers.md](docs/mcp-servers.md). The other thirteen work as soon as
+you run the setup below.
+
+### Upgrading from 0.12.x or earlier
+
+If you ever copied skill folders into `~/.claude/skills/` by hand, **delete the
+`azure-devops`, `heroku` and `linear` folders there.** Those older copies are
+curl-based, and a loose copy takes precedence over the plugin's — so the skill
+would tell Claude to make REST calls that the shipped guard hook now refuses.
+Copies of the other thirteen are stale but harmless.
+
+```bash
+rm -rf ~/.claude/skills/{azure-devops,heroku,linear}
+```
+
 ### One-time setup
 
 ```bash
@@ -144,9 +161,14 @@ Each `configure` is interactive and:
 
 ## Multi-account workflow
 
-All credential-based skills follow the same INI profile pattern (modeled
-after AWS CLI). Add unlimited profiles per service: personal, work, multiple
-clients, dev/staging/prod environments — each isolated.
+The ten profile-based skills follow the same INI pattern (modeled after AWS
+CLI). Add unlimited profiles per service: personal, work, multiple clients,
+dev/staging/prod environments — each isolated.
+
+`azure-devops`, `heroku` and `linear` are not in this list. They reach their
+service through an MCP server, which holds one credential and knows nothing
+about profiles. `~/.heroku/credentials` and `~/.azure-devops/credentials` are
+still read — by those servers, not by the skill.
 
 ### Which skills support multi-account
 

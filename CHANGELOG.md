@@ -46,6 +46,23 @@ Removed: `skills/{linear,heroku,azure-devops}/recipes.md` and
 
 The other thirteen skills are untouched and remain curl + jq with profiles.
 
+### Added — upgrade note for anyone with hand-copied skill folders
+
+A skill folder copied into `~/.claude/skills/` takes precedence over the
+plugin's. Someone who did that before 0.13.0 keeps a curl-based `azure-devops`,
+`heroku` or `linear` that shadows the MCP version — and tells Claude to make
+exactly the REST calls the new guard hook refuses. The README and
+[docs/mcp-servers.md](docs/mcp-servers.md) now say to delete those three folders,
+with the command; copies of the other thirteen skills are stale but harmless.
+
+`~/.linear/credentials` is now unused — Linear authenticates by OAuth inside the
+MCP server. Delete it and revoke the key it holds if nothing else uses it.
+`~/.heroku/credentials` and `~/.azure-devops/credentials` stay, read by the MCP
+servers rather than by the skills.
+
+The Install section also now says plainly that three of the sixteen skills need
+a second setup step and do nothing without an MCP server.
+
 ### Added — the wiring, the tiers and the guards
 
 - **[docs/mcp-servers.md](docs/mcp-servers.md)** — how to configure the three

@@ -29,6 +29,24 @@ Server on-premises is not Azure DevOps Services, and a scoped Heroku token is no
 a personal one. The toolkit ships the skills that drive them; this document is
 the wiring.
 
+## Coming from 0.12.x or earlier
+
+Up to 0.12.2 these three skills were curl-based, with `~/.linear/credentials`,
+`~/.azure-devops/credentials` and `~/.heroku/credentials` profiles driving them.
+Two things to do once:
+
+1. **Delete any hand-copied folders** for these three under `~/.claude/skills/`.
+   A loose copy takes precedence over the plugin's, so an old curl-based copy
+   would tell Claude to make exactly the REST calls the guard hook now refuses.
+   Copies of the other thirteen skills are stale but harmless.
+2. **`~/.linear/credentials` is now unused** — Linear authenticates by OAuth
+   inside the MCP server. Delete it, and revoke the personal API key it holds if
+   nothing else uses it. `~/.heroku/credentials` and `~/.azure-devops/credentials`
+   stay, but they are read by the MCP servers now, not by the skills.
+
+Nothing else changes. `--profile`, `read_only` and the audit log still work for
+the other thirteen skills exactly as before.
+
 ## `.mcp.json`
 
 At the root of the project that needs them:
